@@ -136,7 +136,7 @@ double to_rad( double g );
 double to_grad( double r );
 double sqrt2( double a , double b );
 double sqrt3( double a , double b , double c );
-void GeoToWGS84(vectord *a, double B, double L, double H);
+
 void WGS84ToGeo( vectord *a, double X, double Y, double Z);
 
 void F(RungKutt *f, RungKutt x);

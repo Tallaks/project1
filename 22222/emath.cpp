@@ -409,17 +409,7 @@ double sqrt3( double a , double b , double c ) {
     return (sqrt(a*a+b*b+c*c));
 }
 
-/* Из геодезических в WGS-84 */
-void GeoToWGS84( vectord *a, double B, double L, double H){
-    vectord A;
-    double N;
-    double e = 1/298.257223563;
-    N = 6378137.0/sqrt(1 - (2*e-e*e)*sin(to_rad(B))*sin(to_rad(B)));
-    A[0] = (N + H)*cos(to_rad(B))*cos(to_rad(L));
-    A[1] = (N + H)*cos(to_rad(B))*sin(to_rad(L));
-    A[2] = ((1-e)*(1-e)*N + H)*sin(to_rad(B));
-    copy_v(a,A);
-}
+
 
 void WGS84ToGeo( vectord *a, double X, double Y, double Z){
     vectord A;
@@ -443,9 +433,9 @@ void F(RungKutt *f,RungKutt x){
     (*f)[0] = x[3];
     (*f)[1] = x[4];
     (*f)[2] = x[5];
-    (*f)[3] = -x[0]*Mu/(r*r*r);//(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-1)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-42*(x[2]*x[2])/(r*r)+3)));
-    (*f)[4] = -x[1]*Mu/(r*r*r);//(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-1)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-42*(x[2]*x[2])/(r*r)+3)));
-    (*f)[5] = -x[2]*Mu/(r*r*r);//(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-3)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-70*(x[2]*x[2])/(r*r)+15)));
+    (*f)[3] = -x[0]*(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-1)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-42*(x[2]*x[2])/(r*r)+3)));
+    (*f)[4] = -x[1]*(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-1)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-42*(x[2]*x[2])/(r*r)+3)));
+    (*f)[5] = -x[2]*(p0/(r*r*r)*(1+p1/(r*r)*(5*(x[2]*x[2])/(r*r)-3)+p2/(r*r*r*r)*(63*(x[2]*x[2]*x[2]*x[2])/(r*r*r*r)-70*(x[2]*x[2])/(r*r)+15)));
 }
 
 /*Суммирование векторов, используемых в методе Рунге-Кутты*/

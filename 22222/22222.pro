@@ -21,8 +21,7 @@ SOURCES += main.cpp\
     succes.cpp \
     qchartviewer.cpp \
     realtimezoomscroll.cpp \
-    traj.cpp \
-    settings.cpp
+    traj.cpp
 
 HEADERS  += estar.h \
     emath.h \
@@ -32,8 +31,7 @@ HEADERS  += estar.h \
     succes.h \
     qchartviewer.h \
     realtimezoomscroll.h \
-    traj.h \
-    settings.h
+    traj.h
 
 RESOURCES += \
     realtimezoomscroll.qrc
