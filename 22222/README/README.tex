@@ -1,0 +1,38 @@
+\documentclass[12pt]{article}
+\usepackage{newlistok}
+\usepackage{moreverb}
+\begin{document}
+\section{Файл main}
+\hrulefill
+
+Главный файл проекта, в котором создается и основное окно и расчетный модуль.
+
+Основное окно имеет класс Estar, который будет рассмотрен ниже.
+Расчетный модуль имеет класс Count, который присоединяется к классу основного окна.
+Класс Count будет рассмотрен ниже.
+\subsection*{main.cpp}
+\begin{listing}[1]{1}
+#include "estar.h"
+#include "count.h"
+#include <QApplication>
+#include <QMainWindow>
+
+int main(int argc, char *argv[])
+{
+    qApp->addLibraryPath("H:/Qt/Qt5.7.0/5.7/mingw53_32/plugins");  
+    QApplication a(argc, argv);                                     
+    Estar es;                                                    
+    es.setWindowTitle("Estar Kinematika");                                                                                 
+    Count c(&es);
+    es.show();
+    return a.exec();                                                
+}
+\end{listing}
+\hrulefill
+\newpage
+\section{Класс Estar}
+\input{Estar}
+
+
+
+\end{document}
