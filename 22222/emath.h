@@ -143,7 +143,7 @@ void F(RungKutt *f, RungKutt x);
 void sum_rk(RungKutt *c,RungKutt a,RungKutt b);
 void mul_rk(RungKutt *c,RungKutt a,double b);
 void DiffRungKutt(vectord *r, vectord *v, vectord R0, vectord V0, double t);
-
+void GeoToWGS84( vectord *a, double B, double L, double H);
 void Povorot0(quaterniond *L, vectord rj2000, vectord vj2000);
 
 void mul_m1v(quaterniond *IK, matrixd1 m, vectord b);

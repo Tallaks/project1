@@ -409,7 +409,17 @@ double sqrt3( double a , double b , double c ) {
     return (sqrt(a*a+b*b+c*c));
 }
 
-
+/* Из геодезических в WGS-84 */
+void GeoToWGS84( vectord *a, double B, double L, double H){
+    vectord A;
+    double N;
+    double e = 1/298.257223563;
+    N = 6378137.0/sqrt(1 - (2*e-e*e)*sin(to_rad(B))*sin(to_rad(B)));
+    A[0] = (N + H)*cos(to_rad(B))*cos(to_rad(L));
+    A[1] = (N + H)*cos(to_rad(B))*sin(to_rad(L));
+    A[2] = ((1-e)*(1-e)*N + H)*sin(to_rad(B));
+    copy_v(a,A);
+}
 
 void WGS84ToGeo( vectord *a, double X, double Y, double Z){
     vectord A;

@@ -13,9 +13,11 @@ Count - Это расчетный класс, в котором на данны�
 #define COUNT_H
 
 #include <QObject>
-#include <estar.h>
 #include "emath.h"
 #include "j2000.h"
+#include "estar.h"
+#include <QFile>
+
 
 class Count : public Estar
 {
@@ -23,70 +25,72 @@ class Count : public Estar
 
     public:
         explicit Count(Estar *parent = Q_NULLPTR);
+        vectord r0_geod;
+        vectord r0_j2000;           // Радиус-вектор КА в системе j2000
+        vectord v0_j2000;           // Скорость КА в системе j2000
+        vectord r0_wgs84;           // Радиус-вектор КА в системе WGS-84
+        vectord v0_wgs84;           // Скорость КА в системе WGS-84
+        vectord r0_KA;
+        vectord v0_KA;
+        vectord r_kadr_geod;        // Радиус-вектор точки начала съемки в геодезических координатах
+        vectord r_kadr_wgs84;       // Радиус-вектор точки начала съемки в WGS-84
+        vectord r_kadr_j2000;       // Радиус-вектор точки начала съемки в J2000
+        vectord r_kadr_Orb;          // Радиус-вектор точки начала съемки в ОСК
+        vectord r_kadr_KA;
+        Estar *parent1;
+        quaterniond FrJ2000toKA;    // кватернион поворота от системы j2000 к с.к. КА в произвольный момент времени
+        quaterniond FrKAtoJ2000;
+        quaterniond FrKA1toOrb;  // кватернион поворота от требуемой системы КА к ОСК
+        quaterniond FrOrbtoKA1;  // кватернион поворота от системы ОСК к требуемой КА
+        quaterniond FrKA1toKA;   // кватернион поворота от требуемой системы КА к КА
+        quaterniond FrKAtoKA1;   // кватернион поворота от системы КА к требуемой системе КА
+        quaterniond FrKAtoPr = {cos(to_rad(45)),0,-sin(to_rad(45)),0};
+
+        matrixd1     FrPrtoIK;
+        quaterniond  Ik;
+
+        vectord omega_Orb;
+        vectord omega_KA;        // угловая скорость КА в J2000
+        vectord omega_pr;
+        vectord omega_upr;
+        vectord omega_ka_nv;        // Угловая скорость от невозмущенного движения
+
+        double g_lat;
+        double g_lon;
+        double t0;
+        double k0;
+        double kren_fin;
+        double tang_fin;
+        QDateTime DT;
+        QDateTime tdn;
         double tau_kadr;
         QTime tau;
         int speed;
-        // Текущая дата и время
-       QDateTime DT;
+        void SetStartParameters(double lon, double lat);
+        /*
+        SetStartParameters - это функция класса Count, задающая параметры движения КА в начальный момент времени
+        Входные переменные:
+            lon         - геодезическая долгота
+            lat         - геодезическая широта
+        Выходные данные:
+            omega_j2000 - Вектор угловой скорости КА в системе J2000 (вращение вокруг Земли)
+            M0          - Кватернион поворота от системы j2000 в систему КА
+            r0_j2000    - Радиус-вектор КА в системе j2000 в начальный момент времени
+            v0_j2000    - Скорость КА в системе j2000 в начальный момент времени
+        */
+
         int MotionMode;
-
-        // Параметры спутника и орбиты
-
-        double Height = 650000;                            //высота орбиты в метрах
-        double Velocity = 7450.491707484375;               //модуль начальной скорости КА в м/с
-        double Incline = 98;                               //наклон орбиты в градусах
-
-        /* Координаты спутника r в:
-         *      geod  - геодезической с.к.
-         *      j2000 - в инерциальной с.к. J2000
-         *      wgs84 - в неинерциальной с.к. WGS-84
-        */
-
-        vectord r_geod;
-        vectord r_j2000;
-        vectord r_wgs84;
-
-        /* Скорость спутника v в:
-         *      j2000 - в инерциальной с.к. J2000
-         *      wgs84 - в неинерциальной с.к. WGS-84
-        */
-
-        vectord v_j2000;
-        vectord v_wgs84;
-
-        vectord r_kadr_geod;                                            // Радиус-вектор точки начала съемки в геодезических координатах
-        vectord r_kadr_wgs84;                                           // Радиус-вектор точки начала съемки в WGS-84
-        vectord r_kadr_j2000;                                           // Радиус-вектор точки начала съемки в J2000
-        vectord r_kadr_KA;                                              // Радиус-вектор точки начала съемки в ск КА
-
-        quaterniond FrJ2000toKA;                                        // кватернион перехода от системы j2000 к с.к. КА
-        quaterniond FrKAtoJ2000;                                        // кватернион перехода от системы КА к с.к. J2000
-        quaterniond FrKAtoPr = {cos(to_rad(45)),                        // кватернион перехода от с.к. КА к с.к. ДУС
-                                0,
-                                -sin(to_rad(45)),
-                                0};
-        matrixd1     FrPrtoIK;                                          // Матрица перехода от с. к. ДУС к показаниям ИК
-        matrixd      FrWGStoJ2000;
-        matrixd      FrJ2000toWGS;
-
-
-        vectord AngVel_KA;                                              // Угловая скорость КА в J2000
-        vectord AngVel_pr;                                              // Угловая скорость в приборной с.к.
-        vectord AngVel_upr;                                             // Угловая скорость от управляющего воздействия
-        vectord AngVel_ka_nv;                                           // Угловая скорость от невозмущенного движения
-
-         // Направление визирования при нулевом тангаже и крене
-        vectord zeroDir = {0,
-                          1,
-                          0};
-
-        // Четырехмерный вектор с показаниями ИК
-        quaterniond Ik;
+        QFile file,file1;
 
     public slots:
         void NevozMotion();
-        void StartParameters();
+        /* NevozMotion - это функция класса Count, моделирующая невозмущенное движение спутника по орбите */
         void ResultMotion();
+        void KadrMotion();
+        void NavedMotion();
+        void EndKadrMotion();
+        void KoridorMotion();
+        void PloshadMotion();
         void SetStop();
         void SetStart();
         void SetPause();
@@ -102,12 +106,12 @@ class Count : public Estar
         void send_kadr(double,double,double,double,double,double,double,double,double);
         void done();
         void send_geod(double,double,double);
+        void send_nev(double,double,double,QDateTime);
         void send_ik(double,double,double,double);
         void send_graph1(double,double,double,double,double);
 
     private slots:
-        //void StartPosition(double lat, double lon, int mode, QDateTime ntd); //Кадровая съемка
-        void GeoToWGS84(vectord *a, double B, double L, double H);
+        void StartPosition(double lat, double lon, int mode, QDateTime ntd); //Кадровая съемка
 
 };
 
