@@ -20,8 +20,7 @@ SOURCES += main.cpp\
     dialogmotion.cpp \
     succes.cpp \
     qchartviewer.cpp \
-    realtimezoomscroll.cpp \
-    traj.cpp
+    realtimezoomscroll.cpp
 
 HEADERS  += estar.h \
     emath.h \

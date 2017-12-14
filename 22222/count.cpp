@@ -2,6 +2,7 @@
 #include <windows.h>
 #include<QCoreApplication>
 #include <QTextStream>
+#include "traj.h"
 
 Count::Count(Estar *parent):Estar(parent)
 {
@@ -11,11 +12,9 @@ Count::Count(Estar *parent):Estar(parent)
     connect(this,SIGNAL(send_nv(double,double,double,double,double,double,
                                 QTime)),parent,SLOT(update(double,double,double,double,double,
                                                                                         double,QTime)));
-  //  connect(this,SIGNAL(send_graph(double,double,double,double)),parent->demo,SLOT(onDataTimer(double,double,double,double)));
     connect(this,SIGNAL(send_geod(double,double,double)),parent,SLOT(updategeod(double,double,double)));
     connect(parent->StopButton,SIGNAL(clicked()),this,SLOT(SetStop()));
     connect(parent->PauseButton,SIGNAL(clicked()),this,SLOT(SetPause()));
-    connect(parent,SIGNAL(send_kadr_position(double,double,int,QDateTime)),this,SLOT(StartPosition(double,double,int,QDateTime)));
     connect(this,SIGNAL(send_kadr(double,double,double,double,double,double,double,double,double)),parent->DM,SLOT(update(double,double,double,double,double,double,double,double,double)));
     connect(this,SIGNAL(done()),parent,SLOT(Succesed()));
     connect(this,SIGNAL(send_nev(double,double,double,QDateTime)),parent,SLOT(update1(double,double,double,QDateTime)));
@@ -31,121 +30,6 @@ Count::Count(Estar *parent):Estar(parent)
     DT = parent->dateEdit->dateTime();
     speed = 0;
     SetStop();
-}
-
-void Count::StartPosition(double lat, double lon,int mode,QDateTime ntd){
-    tau_kadr=0;
-    tdn = ntd;
-    omega_upr[0] = 0;
-    omega_upr[1] = 0;
-    omega_upr[2] = 0;
-    r_kadr_geod[0] = lat;
-    r_kadr_geod[1] = lon;
-    r_kadr_geod[2] = 0;
-    GeoToWGS84(&r_kadr_wgs84,r_kadr_geod[0],r_kadr_geod[1],r_kadr_geod[2]);
-    matrixd M_SNP;
-    j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&M_SNP);              // Задание матрицы перевода из системы j2000 в WGS84
-    inverse_m(&M_SNP,M_SNP);                                // Задание матрицы перевода из системы WGS84 в J2000
-    mul_mv(&r_kadr_j2000,M_SNP,r_kadr_wgs84);                        //перевод Радиус-вектора КА из системы WGS-84 в систему j2000
-    MotionMode = mode;
-}
-
-void Count::NavedMotion(){
-    vectord T_j2000,T_KA,cross;
-   double phi,w;
-   w = abs_v(omega_upr);
-   sub_v(&T_j2000,r_kadr_j2000,r0_j2000);
-   project_v(&T_KA,T_j2000,FrJ2000toKA);
-   cross_v(&cross,ORT_Y,T_KA);
-   phi = asin(abs_v(cross)/(abs_v(ORT_Y)*abs_v(T_KA)));
-   if(phi < 0.05){
-      if(MotionMode == 1){
-        emit done();
-        MotionMode = 10;
-      }
-
-      if(MotionMode == 2){
-          emit done();
-          MotionMode = 10;
-      }
-      if(MotionMode == 3){
-          t0 = 0;
-          k0 = 0;
-        MotionMode = 13;
-      }
-   }
-   if(phi*180/M_PI < 30){
-      if(w<3){w+=1.5*0.2;}else{
-           w = 3;
-      }
-   norm_v(&cross,cross);
-   omega_upr[0] = w*cross[0];
-   omega_upr[1] = w*cross[1];
-   omega_upr[2] = w*cross[2];
-   }
-   emit send_kadr(phi*180/M_PI,w,omega_upr[0],omega_upr[1],omega_upr[2],FrJ2000toKA[0],FrJ2000toKA[1],FrJ2000toKA[2],FrJ2000toKA[3]);
-}
-void Count::PloshadMotion(){}
-void Count::KoridorMotion(){
-    vectord T_j2000,T_KA,cross;
-    double phi,w;
-    w = abs_v(omega_upr);
-
-    sub_v(&T_j2000,r_kadr_j2000,r0_j2000);
-    project_v(&T_KA,T_j2000,FrJ2000toKA);
-    cross_v(&cross,ORT_Y,T_KA);
-    phi = asin(abs_v(cross)/(abs_v(ORT_Y)*abs_v(T_KA)));
-
-    if(t0>30){
-        emit done();
-        MotionMode = 10;
-    }
-
-    emit send_kadr(phi*180/M_PI,w,omega_upr[0],omega_upr[1],omega_upr[2],FrJ2000toKA[0],FrJ2000toKA[1],FrJ2000toKA[2],FrJ2000toKA[3]);
-}
-
-void Count::KadrMotion(){
-    vectord T_j2000,T_KA,cross;
-    double phi,w;
-    w = abs_v(omega_upr);
-    sub_v(&T_j2000,r_kadr_j2000,r0_j2000);
-    project_v(&T_KA,T_j2000,FrJ2000toKA);
-    cross_v(&cross,ORT_Y,T_KA);
-    phi = asin(abs_v(cross)/(abs_v(ORT_Y)*abs_v(T_KA)));
-    if(phi < 0.001){
-        emit done();
-        MotionMode = 12;
-    }
-    if(phi*180/M_PI < 30){
-        if(w<3){w+=1.5*0.2;}else{
-            w = 3;
-        }
-        norm_v(&cross,cross);
-        omega_upr[0] = w*cross[0];
-        omega_upr[1] = w*cross[1];
-        omega_upr[2] = w*cross[2];
-    }
-    emit send_kadr(phi*180/M_PI,w,omega_upr[0],omega_upr[1],omega_upr[2],FrJ2000toKA[0],FrJ2000toKA[1],FrJ2000toKA[2],FrJ2000toKA[3]);
-}
-
-void Count::EndKadrMotion(){
-    double w;
-    w = abs_v(omega_upr);
-    omega_upr[0] = omega_upr[0]/w;
-    omega_upr[1] = omega_upr[1]/w;
-    omega_upr[2] = omega_upr[2]/w;
-    if(w>0.0001){w-=1.5*0.2;
-        omega_upr[0] = omega_upr[0]*w;
-        omega_upr[1] = omega_upr[1]*w;
-        omega_upr[2] = omega_upr[2]*w;
-    }else{
-        w = 0;
-        omega_upr[0] = 0;
-        omega_upr[1] = 0;
-        omega_upr[2] = 0;
-        MotionMode = 0;
-    }
-emit send_kadr(0,w,omega_upr[0],omega_upr[1],omega_upr[2],FrJ2000toKA[0],FrJ2000toKA[1],FrJ2000toKA[2],FrJ2000toKA[3]);
 }
 
 int i = 0;
@@ -227,12 +111,7 @@ void Count::ResultMotion(){
         DT=DT.addMSecs(200);
         tau=tau.addMSecs(200);
         NevozMotion();
-        if((MotionMode != 0)&&(MotionMode != 10)&&(MotionMode != 13)) NavedMotion();
-        if(MotionMode == 13){
-            t0+= 0.2;
-            KoridorMotion();
-        }
-        if(MotionMode == 10) EndKadrMotion();
+
         add_v(&omega_KA,omega_ka_nv,omega_upr);
         omega_KA[0] = omega_KA[0]*M_PI/180;
         omega_KA[1] = omega_KA[1]*M_PI/180;

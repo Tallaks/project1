@@ -86,11 +86,6 @@ class Count : public Estar
         void NevozMotion();
         /* NevozMotion - это функция класса Count, моделирующая невозмущенное движение спутника по орбите */
         void ResultMotion();
-        void KadrMotion();
-        void NavedMotion();
-        void EndKadrMotion();
-        void KoridorMotion();
-        void PloshadMotion();
         void SetStop();
         void SetStart();
         void SetPause();
@@ -109,9 +104,6 @@ class Count : public Estar
         void send_nev(double,double,double,QDateTime);
         void send_ik(double,double,double,double);
         void send_graph1(double,double,double,double,double);
-
-    private slots:
-        void StartPosition(double lat, double lon, int mode, QDateTime ntd); //Кадровая съемка
 
 };
 
