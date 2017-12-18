@@ -2,7 +2,7 @@
 #include <windows.h>
 #include<QCoreApplication>
 #include <QTextStream>
-#include "traj.h"
+//#include "traj.h"
 
 Count::Count(Estar *parent):Estar(parent)
 {
