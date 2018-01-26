@@ -82,7 +82,8 @@ DIST          =  estar.h \
 		dialogmotion.h \
 		succes.h \
 		qchartviewer.h \
-		realtimezoomscroll.h main.cpp \
+		realtimezoomscroll.h \
+		traj.h main.cpp \
 		estar.cpp \
 		emath.cpp \
 		count.cpp \
@@ -1753,7 +1754,8 @@ release/count.o: count.cpp count.h \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QCoreApplication \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qcoreapplication.h \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qeventloop.h \
-		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QTextStream
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QTextStream \
+		traj.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\count.o count.cpp
 
 release/j2000.o: j2000.cpp j2000.h \
@@ -1885,7 +1887,28 @@ release/dialogmotion.o: dialogmotion.cpp dialogmotion.h \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qdatetimeedit.h \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qabstractspinbox.h \
 		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtGui/qvalidator.h \
-		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qregularexpression.h
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qregularexpression.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtHelp/QHelpContentItem \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtHelp/qhelpcontentwidget.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtHelp/qhelp_global.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QString \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QObject \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/QQueue \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qqueue.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/QTreeView \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qtreeview.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qabstractitemview.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qabstractscrollarea.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qabstractitemmodel.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtCore/qitemselectionmodel.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qabstractitemdelegate.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qstyleoption.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qslider.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qabstractslider.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qstyle.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qtabbar.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qtabwidget.h \
+		../../Qt/Qt5.7.0/5.7/mingw53_32/include/QtWidgets/qrubberband.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\dialogmotion.o dialogmotion.cpp
 
 release/succes.o: succes.cpp succes.h \

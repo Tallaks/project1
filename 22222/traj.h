@@ -17,12 +17,6 @@ namespace Trajectory{
 
     enum DynaModes{dynModeConst,dynModeEarth,dynModeStars,dynModeMoon,dynModeSun,dynModeTest};
 
-    class DynError{
-    public:
-        unsigned Value;
-
-    };
-
    class MotionDesc
    {
    public:
@@ -410,15 +404,6 @@ namespace Trajectory{
                return retValue;
             }
 
-      bool currentDirection(const Settings& settings, double Alpha, double Beta, DynError& err, ModeDesc& data)
-      {
-         int mode = (int)modeDesc.h;
-         if(mode>=0)
-            return currentHeocentricDirection(settings,Alpha,Beta,err,data);
-         else
-            return currentHeliocentricDirection(settings,Alpha,Beta,err,data);
-      }
-
       DynaModes mode() const
       {
          return modeDesc.md;
@@ -431,13 +416,13 @@ namespace Trajectory{
          _dpnVectFrsStep = DPN_VEC_1ST_STEP;
       }
 
-     void vectorsToAngles(const vectord &aAxis,
-                                               const vectord &bAxis,
-                                               const vectord &zeroDir,
-                                               const vectord &trgtDir,
-                                               const vectord &nodeDir,
-                                               double &Alpha,
-                                               double &Beta)
+     void vectorsToAngles(vectord aAxis,
+                          vectord bAxis,
+                          vectord zeroDir,
+                          vectord trgtDir,
+                          vectord nodeDir,
+                          double Alpha,
+                          double Beta)
       {
          // 0.0 Инициализируем необходимые переменные
          double sina=0, sinb=0, cosa=0, cosb=0;
@@ -446,208 +431,131 @@ namespace Trajectory{
          // 1.0 Вычисляем синусы и косинусы углов Альфа и Бета
          // 1.1 Бета - это угол между перпендикулярами к оси Бета из линии узлов
          //     и из нулевого положения
-         sProd = nodeDir*bAxis; // Это косинус угла м-ду линией узлов и осью (по идее длина проекции в-ра на ось)
-         vectord nodeProj = nodeDir - bAxis*sProd;
-         if(nodeProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;
-         nodeProj = nodeProj/nodeProj.absValue();
-         sProd = zeroDir*bAxis; // Это косинус угла м-ду нулевым положением ДПНп и осью (по идее длина проекции в-ра на ось)
-         vectord zeroProj = zeroDir - bAxis*sProd;
-         if(zeroProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;
-         zeroProj = zeroProj/zeroProj.absValue();
-         cosb = zeroProj*nodeProj;
-         vProd = zeroProj|nodeProj;
-         sProd = vProd*bAxis;   // cos угла м-ду векторм и осью, если 1, то сонаправлены, если -1, то противоположно направлены
-         sinb = sProd>=0.0 ? vProd.absValue() : -vProd.absValue();
+         sProd = dot_v(nodeDir,bAxis); // Это косинус угла м-ду линией узлов и осью (по идее длина проекции в-ра на ось)
+         vectord nodeProj,bAsP;
+         mul_vf(&bAsP,bAxis,sProd);
+         sub_v(&nodeProj,nodeDir,bAsP);
+
+        /* if(abs_v(nodeProj)<CALC_THRESHOLD)
+            return DynError::DpnCalcError;*/
+         norm_v(&nodeProj,nodeProj);
+         // Это косинус угла м-ду нулевым положением ДПНп и осью (по идее длина проекции в-ра на ось)
+         sProd = dot_v(zeroDir,bAxis);
+         mul_vf(&bAsP,bAxis,sProd);
+         vectord zeroProj;
+         sub_v(&zeroProj,zeroDir,bAsP);
+     /*  if(zeroProj.absValue()<SudnLib::CALC_THRESHOLD)
+            return DynError::DpnCalcError;*/
+         norm_v(&zeroProj,zeroProj);
+         cosb = dot_v(zeroProj,nodeProj);
+         cross_v(&vProd,zeroProj,nodeProj);
+         sProd = dot_v(vProd,bAxis);   // cos угла м-ду векторм и осью, если 1, то сонаправлены, если -1, то противоположно направлены
+         sinb = sProd>=0.0 ? abs_v(vProd) : -abs_v(vProd);
 
          // 1.2 Альфа - это угол между перпендикулярами к оси Альфа из линии узлов
          //     и из направления цели
-         sProd = nodeDir*aAxis; // Это косинус угла м-ду линией узлов и осью (по идее длина проекции в-ра на ось)
-         nodeProj = nodeDir - aAxis*sProd;
-         if(nodeProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;
-         nodeProj = nodeProj/nodeProj.absValue();
-         sProd = trgtDir*aAxis; // Это косинус угла м-ду направлением на цель и осью (по идее длина проекции в-ра на ось)
-         SudnLib::Vector trgtProj = trgtDir - aAxis*sProd;
-         if(trgtProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;
-         trgtProj = trgtProj/trgtProj.absValue();
-         cosa = nodeProj*trgtProj;
-         vProd = nodeProj|trgtProj;
-         sProd = vProd*aAxis;   // cos угла м-ду векторм и осью, если 1, то сонаправлены, если -1, то противоположно направлены
-         sina = sProd>=0.0 ? vProd.absValue() : -vProd.absValue();
+         sProd = dot_v(nodeDir,aAxis); // Это косинус угла м-ду линией узлов и осью (по идее длина проекции в-ра на ось)
+         vectord aAsP;
+         mul_vf(&aAsP,aAxis,sProd);
+         sub_v(&nodeProj,nodeDir,aAsP);
+        /* if(nodeProj.absValue()<SudnLib::CALC_THRESHOLD)
+            return DynError::DpnCalcError;*/
+         norm_v(&nodeProj,nodeProj);
+         sProd = dot_v(trgtDir,aAxis); // Это косинус угла м-ду направлением на цель и осью (по идее длина проекции в-ра на ось)
+         vectord trgtProj;
+         mul_vf(&aAsP,aAxis,sProd);
+         sub_v(&trgtProj,trgtDir,aAsP);
+         /*if(trgtProj.absValue()<SudnLib::CALC_THRESHOLD)
+            return DynError::DpnCalcError;*/
+         norm_v(&trgtProj,trgtProj);
+         cosa = dot_v(nodeProj,trgtProj);
+         cross_v(&vProd,nodeProj,trgtProj);
+         sProd = dot_v(vProd,aAxis);   // cos угла м-ду векторм и осью, если 1, то сонаправлены, если -1, то противоположно направлены
+         sina = sProd>=0.0 ? abs_v(vProd) : -abs_v(vProd);
 
 
          // 2.0 Вычисляем из синусов и косинусов углы аьфа и бета
          // Переводим синусы и косинусы углов в углы поворота платформы
-         if(fabs(sinb)<=1.0)
             Beta = cosb>=0 ? asin(sinb)*180/M_PI :
             ((sinb>=0 ? 180.0 : -180.0) - asin(sinb)*180/M_PI);
-         else
-            retValue = DynError::DpnCalcError;
-
-         if(fabs(sina)<=1.0)
             Alpha = cosa>=0 ? asin(sina)*180/M_PI :
             ((sina>=0 ? 180.0 : -180.0) - asin(sina)*180/M_PI);
-         else
-            retValue = DynError::DpnCalcError;
-
-         return retValue;
-
       }
 
       void directionToAngles(MotionDesc *pos,
-                                                  const vectord& dir,
-                                                  const vectord &vTel,
-                                                  const char solType,
-                                                  const double *zoneA,
-                                                  const double *zoneB)
+                                                  vectord dir,
+                                                  vectord vTel,
+                                                  char solType)
       {
-         DynError::Value retValue = DynError::DpnCalcOk;
-         double cos5 = cos(M_PI/180*5.0),
-                sin5 = sin(M_PI/180*5.0);
-
          // 1.0 Находим линии пересечения конусов вращения по альфа и бета
-         SudnLib::Vector bAxis(1.0,0.0,0.0);
-         SudnLib::Vector aAxis(0.0,-cos5,sin5);
-         SudnLib::Vector trgtDir, zeroDir;
-         trgtDir = dir/dir.absValue();
-         zeroDir = vTel/vTel.absValue();
-
-         double k1 = (aAxis[1]*trgtDir[1] + aAxis[2]*trgtDir[2])/aAxis[2],
-                k2 = -aAxis[1]/aAxis[2];
-         double a = 1.0+k2*k2,
-                b = 2.0*k1*k2,
-                c = zeroDir[0]*zeroDir[0] - 1.0 + k1*k1;
-         double D = b*b-4.0*a*c;
-         if(D<0)
-            return DynError::DpnCalcError;
-         /*double x0,x01,x02,
-                y0,y01,y02,
-                z0,z01,z02;*/
+         vectord bAxis={0.0,0.0,1.0};
+         vectord aAxis{1.0,0.0,0.0};
+         vectord trgtDir, zeroDir;
+         norm_v(&trgtDir,dir);
+         norm_v(&zeroDir,vTel);
 
          double x01, x02,
                 y01, y02,
                 z01, z02;
 
-         y01 = (-b+sqrt(D))/(2.0*a);
-         y02 = (-b-sqrt(D))/(2.0*a);
-         z01 = k1 + y01*k2;
-         z02 = k1 + y02*k2;
-         x01 = zeroDir[0];
-         x02 = zeroDir[0];
+         y01 = trgtDir[1]/(trgtDir[1]*trgtDir[1]+trgtDir[2]*trgtDir[2]);
+         y02 = -trgtDir[1]/(trgtDir[1]*trgtDir[1]+trgtDir[2]*trgtDir[2]);
+         z01 = trgtDir[2]/(trgtDir[1]*trgtDir[1]+trgtDir[2]*trgtDir[2]);
+         z02 = -trgtDir[2]/(trgtDir[1]*trgtDir[1]+trgtDir[2]*trgtDir[2]);
+         x01 = 0;
+         x02 = 0;
 
-         SudnLib::Vector nodeDir[3];
-         nodeDir[0] = SudnLib::Vector(x01,y01,z01); // Просто инициализируем чем-нибудь
-         nodeDir[1] = SudnLib::Vector(x01,y01,z01);
-         nodeDir[2] = SudnLib::Vector(x02,y02,z02);
-
-        /* SudnLib::Vector nodeDir2(x02,y02,z02);
-         SudnLib::Vector nodeDir;*/
+         vectord nodeDir,nodeDir1,nodeDir2;
+         set_v(&nodeDir2,x02,y02,z02);
+         set_v(&nodeDir1,x01,y01,z01);
 
          // 2.0 Выбираем среди двух найденных линий пересечения вариант с минимальным углом Бета
          // Угол бета - угол м-ду вектором нулевого положения ДПНп и линией пересечения конусов вращения
          // double sProd, sProd1, sProd2;
          double sProd1, sProd2;
-         SudnLib::Vector vProd;
-         unsigned short nodeIndex = 0;
-         sProd1 = zeroDir*nodeDir[1]; // Это косинус бета
-         sProd2 = zeroDir*nodeDir[2];
+         sProd1 = dot_v(zeroDir,nodeDir1); // Это косинус бета
+         sProd2 = dot_v(zeroDir,nodeDir2);
 
          // 3.0 Сортируем получившиеся решения на решение из "задней полусферы и из "передней" полусферы
          // Вариант с малым углом Бета это решение из передней полусферы
          if(sProd1<0.0 && sProd2>=0.0)
-            nodeIndex = 2;
+            copy_v(&nodeDir,nodeDir2);
          else if(sProd2<0.0 && sProd1>=0.0)
-            nodeIndex = 1;
+            copy_v(&nodeDir,nodeDir1);
          else if(sProd2>=0.0 && sProd1>=0.0)    // В этом случаем берем минимальный угол Бета
          {
             if(sProd2>=sProd1)
-                nodeIndex = 2;
+                copy_v(&nodeDir,nodeDir2);
             else
-                nodeIndex = 1;
+                copy_v(&nodeDir,nodeDir1);
          }
 
          // 4.0 Выбираем индекс узла исходя из настройки solType
-         double alpha[3], beta[3];
-         double minAlpha = zoneA[0], minBeta = zoneB[0], maxAlpha = zoneA[1], maxBeta = zoneB[1];
+         double alpha, beta;  
          switch(solType)
          {
-            case 0:     // Решение из "задней" полусферы
-                nodeIndex = nodeIndex==1?2:1;
-                retValue = vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir[nodeIndex], alpha[nodeIndex], beta[nodeIndex]);
+            case 0:     // Решение из "задней" полусфер
+                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir2, alpha, beta);
                 break;
             case 1:     // Решение из "передней" полусферы
-                retValue = vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir[nodeIndex], alpha[nodeIndex], beta[nodeIndex]);
-                break;
-            case 2:     // Выбор решения исходя из зон разрешенных углов c приоритетом "передней" полусферы
-            case 3:     // Выбор решения исходя из зон разрешенных углов c приоритетом "задней" полусферы
-                {
-                    bool node1Valid = false, node2Valid = false;
-                    DynError::Value retValue1, retValue2;
-                    // Находим величины углов для каждой линии узлов
-                    retValue1 = vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir[1], alpha[1], beta[1]);
-                    retValue2 = vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir[2], alpha[2], beta[2]);
-                    retValue = (retValue1==DynError::DpnCalcOk && retValue2==DynError::DpnCalcOk)?DynError::DpnCalcOk:DynError::DpnCalcError;
-                    if(retValue==DynError::DpnCalcError)
-                        return DynError::DpnCalcError;
-                    /* Проверяем какой из узлов удовлетворяет заданным ограничениям */
-                    if(alpha[1]>=minAlpha && alpha[1]<=maxAlpha &&
-                       beta[1]>=minBeta && beta[1]<=maxBeta)
-                        node1Valid = true;
-                    if(alpha[2]>=minAlpha && alpha[2]<=maxAlpha &&
-                       beta[2]>=minBeta && beta[2]<=maxBeta)
-                        node2Valid = true;
-                    if(node1Valid && node2Valid)
-                    {
-                        if(solType==3)
-                            nodeIndex = nodeIndex==1?2:1;
-                        break;
-                    }
-                    else if(node1Valid && !node2Valid)
-                        nodeIndex = 1;
-                    else if(!node1Valid && node2Valid)
-                        nodeIndex = 2;
-                    else if(!node1Valid && !node2Valid)
-                        return DynError::DpnDeniedZnError;
-                }
+                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir1, alpha, beta);
                 break;
             default:
-                return DynError::DpnSolTypeBError;
+                break;
          }
 
          // Определяем выбранные значения углово поворота ДПН, соответствующие индексу
          // выбранного узла
-         if(nodeIndex == 1)
-         {
-            pos->posK = alpha[1];
-            pos->posK = beta[1];
-         }
-         else if(nodeIndex == 2)
-         {
-            pos->posK = alpha[2];
-            pos->posK = beta[2];
-         }
-         else
-            return DynError::DpnCalcError;
+            pos->posK = alpha;
+            pos->posT = beta;
 
-         // Если ранее не проверяли, то проверяем, что углы внутри допустимого диапазона
-         if(solType==0 || solType==1)
-         {
-            if((retValue == DynError::DpnCalcOk) && !(pos->posK >= minAlpha && pos->posK <= maxAlpha))
-                retValue = DynError::DpnUporAError;
-            if((retValue == DynError::DpnCalcOk) && !(pos->posK >= minBeta && pos->posK <= maxBeta))
-                retValue = DynError::DpnUporBError;
-         }
 
-         return retValue;
       }
 
       void setCurrentPos(const MotionDesc &currPos)
       {
         double va = (currPos.posK - currentPosition.posK) / TACT_H;
-        double vb = (currPos.posK - currentPosition.posK) / TACT_H;
+        double vb = (currPos.posT - currentPosition.posT) / TACT_H;
         memcpy(&previousPosition, &currentPosition, sizeof(MotionDesc));
         memcpy(&currentPosition, &currPos, sizeof(MotionDesc));
         currentPosition.velK = va;
@@ -672,122 +580,56 @@ namespace Trajectory{
       double                           _dpnVectFrsStep;        ///< Шаг интегрирования вектора состояния, с
       double                           _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
 
-      bool currentHeliocentricDirection(const Settings& settings, double Alpha, double Beta, DynError & err,ModeDesc& data)
+
+      void currentDirection(Settings& settings, double Alpha, double Beta, ModeDesc& data)
       {
+         double dT = 0.0;
          // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
          vectord SrcWGS84;
 
          // Прогнозируем ориентацию станции(ДПН) в системе J2000 на текущий момент времени
          quaterniond qA;
          vectord vW;
-         quaterniond A0;
+         quaterniond A0;//SudnLib::foreseen_Q_We(qA, vW, deltaTO, _dpnQuatFrsStep);
          // Разворот ДПН подвижной, относительно J2000
          mul_q(&A0,A0,settings._qSm2Dpn);
          // Разворот относительно нулей ДПН подвижной на заданные углы
-         quaterniond qDpn2Dpnp(  /* 1.0,0.0,0.0,0.0*/
+         quaterniond qDpnp2Dpnp={  /* 1.0,0.0,0.0,0.0 */
           cos(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
          -cos(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0),
          -sin(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
          -sin(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0)
-         );
-         A0 = A0 * qDpn2Dpnp;
+         };
+         mul_q(&A0,A0,qDpnp2Dpnp);
          // Разворот телескопа ДПН подвижной берем из настроек
-         quaterniond qDpnp2Tel = settings._qTelescope;
-         qDpnp2Tel = ~qDpnp2Tel;
-         A0 = A0 * qDpnp2Tel;
+         quaterniond qDpnp2Tel;
+         copy_q(&qDpnp2Tel,settings._qTelescope);
+         conj_q(&qDpnp2Tel,qDpnp2Tel);
          mul_q(&A0,A0,qDpnp2Tel);
-         conj_q(&A0,A0);
+        conj_q(&A0,A0);
 
-         double Mtel2J2000[9];       // Матрица перехода от телескопа к J2000
-         A0.toMatrix(Mtel2J2000);
-         vectord vTel = settings._vTelB;
-         vectord vView = vTel.mulToMatR(Mtel2J2000);   // Вектор направления телескопа в J2000
-         vView = vView / vView.absValue();
-
-         // Получаем гелиоцентрические координаты линии визирования
-         double projEqat = sqrt(vView[0] * vView[0] + vView[1] * vView[1]);
-         double _l,_b = asin(vView[2])*180/M_PI;
-         if(fabs(projEqat) < SudnLib::CALC_THRESHOLD)
-            _l = 0.0;
-         else
-            _l = acos(vView[0]/projEqat) * 180/M_PI;
-         if(vView[1]<0.0)
-            _l = -_l;
-
-//         data.md = dynModeStars;
-         data.l = _l;
-         data.b = _b;
-         data.h = 0.0;
-
-         return true;
-      }
-
-
-      bool currentHeocentricDirection(const Settings& settings, double Alpha, double Beta, DynError & err,ModeDesc& data)
-      {
-         double dT = 0.0;
-         // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
-         SudnLib::StateVector SrcWGS84(_2hzData.GTIDB_X);
-         // Формируем времена, на которые будем строить прогнозы
-         Mpc::Core::TimeServer::OnboardTime cTime;
-         uint32_t currSec;
-         uint8_t currNSec;
-         cTime.ccsdsUnsegmentedTime(currSec,currNSec);
-         // Время прогнозирование ориентации
-         double  deltaTO = (double)currSec + (double)currNSec/256.0 -
-            (_5hzData.F_Unseg_Time_Coarse + _5hzData.F_Unseg_Time_Fine/65536.0) + dT;
-         // Время прогнозирования навигации
-         double deltaTN = (double)currSec + (double)currNSec/256.0 - _2hzData.GTIDB_TG -
-            (double)_2hzData.F_ASN_toCorrection_LeapSec + dT;
-
-         // Проверяем, что задержки не сильно большие
-         if(deltaTO > _MAX_FORESEEN_TIME || deltaTO<0) {
-            err.set(DynError::DpnAttError, deltaTO, deltaTN);
-            return false;
-         }
-         if(deltaTN > _MAX_FORESEEN_TIME || deltaTN<0) {
-            err.set(DynError::DpnNavError, deltaTO, deltaTN);
-            return false;
-         }
-
-         // Прогнозируем ориентацию станции(ДПН) в системе J2000 на текущий момент времени
-         quaterniond qA(_5hzData.GTIFQ_A);
-         vectord vW(_5hzData.GTIFV_W);
-         quaterniond A0 = SudnLib::foreseen_Q_We(qA, vW, deltaTO, _dpnQuatFrsStep);
-         // Разворот ДПН подвижной, относительно J2000
-         A0 = A0 * settings._qSm2Dpn;
-         // Разворот относительно нулей ДПН подвижной на заданные углы
-         quaterniond qDpnp2Dpnp(  /* 1.0,0.0,0.0,0.0 */
-          cos(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
-         -cos(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0),
-         -sin(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
-         -sin(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0)            /* */
-         );
-         A0 = A0 * qDpnp2Dpnp;
-         // Разворот телескопа ДПН подвижной берем из настроек
-         SudnLib::Quaternion qDpnp2Tel = settings._qTelescope;
-         qDpnp2Tel = ~qDpnp2Tel;
-         A0 = A0 * qDpnp2Tel;
-
-         A0 = ~A0;
          // Матрица перехода от J2000 к WGS84
-         double GREEN[9];
-         SudnLib::j2000ToGreenvich(GREEN, (double)currSec + (double)currNSec/256.0 - (double)_2hzData.F_ASN_toCorrection_LeapSec + dT);
-         SudnLib::Quaternion qJ20002Wgs84 = SudnLib::quaternionFromMatrix(GREEN);
-         qJ20002Wgs84 = ~qJ20002Wgs84;
-         A0 = A0*qJ20002Wgs84;
+         matrixd GREEN;
+         //SudnLib::j2000ToGreenvich(GREEN, (double)currSec + (double)currNSec/256.0 - (double)_2hzData.F_ASN_toCorrection_LeapSec + dT);
+         quaterniond qJ20002Wgs84;
+         quaterniond_m(&qJ20002Wgs84,GREEN);
+         conj_q(&qJ20002Wgs84,qJ20002Wgs84);
+         mul_q(&A0,A0,qJ20002Wgs84);
 
-         double Mtel2Wgs84[9];       // Матрица перехода от телескопа к WGS84
-         A0.toMatrix(Mtel2Wgs84);
-         SudnLib::Vector vTel = settings._vTelB;
-         SudnLib::Vector vView = vTel.mulToMatR(Mtel2Wgs84);   // Вектор направления телескопа в WGS84
+         matrixd Mtel2Wgs84;       // Матрица перехода от телескопа к WGS84
+         matrixd_q(&Mtel2Wgs84,A0);
+         vectord vTel;
+         copy_v(&vTel,settings._vTelB);
+         vectord vView,s;
+         mul_mv(&s,Mtel2Wgs84,vTel);   // Вектор направления телескопа в WGS84
+         copy_v(&vView,s);
 
          // Прогнозируем вектор состояния на текущий момент времени
-         SrcWGS84 = SudnLib::foreseen_VsWGS84(SrcWGS84, deltaTN, 0, _dpnVectFrsStep);
+       //  SrcWGS84 = SudnLib::foreseen_VsWGS84(SrcWGS84, deltaTN, 0, _dpnVectFrsStep);
 
          // Ищем точки пересечения оси визирования телескопа с поверхностью Земли на определенной высоте
-         double polR = SudnLib::earthMajorSemiaxis * (1.0 - SudnLib::earthEllipticity) + modeDesc.h;    // Полярный радиус эллипсоида
-         double equR = SudnLib::earthMajorSemiaxis + modeDesc.h;                                        // Экваториальный радиус эллипсоида
+         double polR;// = SudnLib::earthMajorSemiaxis * (1.0 - SudnLib::earthEllipticity) + modeDesc.h;    // Полярный радиус эллипсоида
+         double equR;// = SudnLib::earthMajorSemiaxis + modeDesc.h;                                        // Экваториальный радиус эллипсоида
          double polR2 = polR * polR;
          double equR2 = equR * equR;
          // Вычисление коэффициентов квадратного уравнения
@@ -798,7 +640,7 @@ namespace Trajectory{
          double D = b*b - 4.0*a*c;
          if(D<0.0)
          {
-            return false;
+             t=0;
          }
          else if(D==0.0)
          {
@@ -817,16 +659,15 @@ namespace Trajectory{
          }
 
          // Получаем координаты точки пересечения линии визирования с поверхностью эллипсоида
-         SudnLib::Vector pointCoord(SrcWGS84[0] + t*vView[0], SrcWGS84[1] + t*vView[1], SrcWGS84[2] + t*vView[2]);
+         vectord pointCoord={SrcWGS84[0] + t*vView[0], SrcWGS84[1] + t*vView[1], SrcWGS84[2] + t*vView[2]};
          // Переводим декартовы координаты в геодезические
-         SudnLib::Vector geodes = SudnLib::XYZTolbh(pointCoord);
+         vectord geodes;// = SudnLib::XYZTolbh(pointCoord);
 
 //         data.md = dynModeEarth;
          data.l = geodes[0];
          data.b = geodes[1];
          data.h = geodes[2];
 
-         return true;
       }
        double      deltaFi;      ///< Угол поворота платформы при движении с постоянной скоростью
    private:
