@@ -2,7 +2,6 @@
 #include <windows.h>
 #include<QCoreApplication>
 #include <QTextStream>
-#include "traj.h"
 
 Count::Count(Estar *parent):Estar(parent)
 {
@@ -49,8 +48,8 @@ void Count::NevozMotion(){
     omega_ka_nv[2] = omega_ka_nv[2]*180/M_PI;
 
     matrixd M_SNP;
-    j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&M_SNP);              // Задание матрицы перевода из системы j2000 в WGS84
-    transp_m(&M_SNP,M_SNP);
+    j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&FrJ2000toWGS);              // Задание матрицы перевода из системы j2000 в WGS84
+    transp_m(&M_SNP,FrJ2000toWGS);
 
     // Расчет невозмущенного движения методом Рунге-Кутты четвортого порядка
     DiffRungKutt(&r_gamma,&v_gamma,r_gamma,v_gamma,0.2);
@@ -172,7 +171,6 @@ void Count::SetStartParameters(double lon,double lat){
     omega_upr[1] = 0;
     omega_upr[2] = 0;
     tau.setHMS(0,0,0,0);
-    matrixd M_SNP;
     double Height,Velocity,Incline;
 
     Height = 650000;                    //высота орбиты в метрах
@@ -183,17 +181,17 @@ void Count::SetStartParameters(double lon,double lat){
     r0_geod[0] = lat;//62.96028;
     r0_geod[1] = lon;//40.68334;
     r0_geod[2] = Height;
-
+    matrixd M_SNP;
     GeoToWGS84(&r0_wgs84,r0_geod[0],r0_geod[1],r0_geod[2]);                                                        // Перевод из геодезических координат в систему WGS-84
-    j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&M_SNP);              // Задание матрицы перевода из системы j2000 в WGS84
-    inverse_m(&M_SNP,M_SNP);                                                                                       // Задание матрицы перевода из системы WGS84 в J2000
+    j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&FrJ2000toWGS);              // Задание матрицы перевода из системы j2000 в WGS84
+    inverse_m(&M_SNP,FrJ2000toWGS);                                                                                       // Задание матрицы перевода из системы WGS84 в J2000
     mul_mv(&r0_j2000,M_SNP,r0_wgs84);                                                                               //перевод Радиус-вектора КА из системы WGS-84 в систему j2000
 
     // Задание вектора скорости КА в системе WGS-84 с учетом его положения на орбите и параметров орбиты
     v0_wgs84[0] = -Velocity*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))));
     v0_wgs84[1] = Velocity*r0_wgs84[0]/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))))*cos(to_rad(Incline));
     v0_wgs84[2] = Velocity*r0_wgs84[0]/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))))*sin(to_rad(Incline));
-    mul_mv(&v0_j2000,M_SNP,v0_wgs84);                        //перевод вектора скорости КА из системы WGS-84 в систему j2000
+    mul_mv(&v0_j2000,FrJ2000toWGS,v0_wgs84);                        //перевод вектора скорости КА из системы WGS-84 в систему j2000
 
     Povorot0(&FrJ2000toKA,r0_j2000,v0_j2000);
 

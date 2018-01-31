@@ -1,7 +1,7 @@
 #ifndef TRAJ_H
 #define TRAJ_H
 
-#include "emath.h"
+#include "count.h"
 
 #define TACT_H 0.2
 #define VEL_MAX 3.0
@@ -50,10 +50,10 @@ namespace Trajectory{
       Settings()
       {
         // Задаем разрешенные зоны приводов альфа и бета по умолчанию
-        Kren[0] = -45.0;
-        Kren[1] = 45.0;
-        Tang[0] = -30.0;
-        Tang[1] = 30.0;
+        Kren[0] = -180.0;
+        Kren[1] = 180.0;
+        Tang[0] = -180.0;
+        Tang[1] = 180.0;
         // Задаем по умолчанию выбор решения из "задней" полусферы
         solChoise = 0;
         // Значения коэффициенттов фильтра высоких частот по умолчанию
@@ -62,16 +62,15 @@ namespace Trajectory{
         FTimeConstant = TACT_H*0.5*(1.0-FltCoeff[0])/FltCoeff[0];
         // Обнуляем значение дробной части липсекунд
         leapSecFrac = 0.0;
+        vTel = {0.0,1.0,0.0};
       }
 
       void initRelocParams(Settings * par)   { RelocParams = par->RelocParams; }
 
       quaterniond                      _qSm2DpnP0;             ///< Установочный кватернион ДПНП0 (СМ->ДПНП0)
       quaterniond                      _qSm2Dpn;               ///< Установочный кватернион ДПН   (СМ->ДПН)
-      quaterniond                      _qTelescope;            ///< Установочный кватернион телескопа (Телескоп->ДПН подвижная)
       quaterniond                      _qCnt2Prf;              ///< Кватернион доворота при наблюдении за Солнцем или Луной (Телескоп->ДПН подвижная)
-      vectord                          _vTel;                  ///< Вектор направления оптической оси телескопа в системе координат ДПН0
-      vectord                          _vTelB;                 ///< Вектор направления оси визирования телескопа в связанной системе координат телескока
+      vectord                          vTel;                  ///< Вектор направления оптической оси телескопа в системе координат ДПН0
       MotionDesc                       _telPos;                ///< Углы направления оси визирования телескопа в системе координат ДПН0
       unsigned char                    solChoise;             ///< Настройка, отвечающая за выбор решения углов наведения ДПН (0-решение из "задней" полусферы, 1-решение из "передней" полусферы, 2-автоматич. выбор решения из условий ограничений")
       double                           Kren[2];
@@ -149,7 +148,7 @@ namespace Trajectory{
              return true;
         }
 
-        bool getTrajectory(const double T, MotionDesc *motionDesc)
+        bool getTrajectory(double T, MotionDesc *motionDesc)
         {
             motionDesc->posK = kSpline[0]*T*T*T + kSpline[1]*T*T + kSpline[2]*T + kSpline[3];
             motionDesc->posT = TSpline[0]*T*T*T + TSpline[1]*T*T + TSpline[2]*T + TSpline[3];
@@ -158,7 +157,7 @@ namespace Trajectory{
             return true;
         }
 
-        bool loPassFilter(const MotionDesc &currPos, MotionDesc *fltMotionDesc, const double *fltCoeff)
+        bool loPassFilter(MotionDesc &currPos, MotionDesc *fltMotionDesc, double *fltCoeff)
         {
             double c1 = fltCoeff[0];
             double c2 =  fltCoeff[1];
@@ -211,7 +210,7 @@ namespace Trajectory{
                velosity = 0.0;
             }
 
-      DynaErrors init(const ModeDesc& data)
+      DynaErrors init(ModeDesc& data)
              {
                 if(data.b < 0.0 || data.b > 4.0)
                    return dynErrNumTraj;
@@ -255,27 +254,17 @@ namespace Trajectory{
                  }
            }
 
-      bool createTrajectory(MotionDesc *pos, const Settings &settings)
+      void createTrajectory(MotionDesc *pos, Settings &settings)
           {
-             double Vel = 0;
-             double VelN = Vel;
-             short trajType = 0;
              double waitTime = 0;
-             bool retValue = true;
-             double bppMaxAcc = settings.RelocParams->maxAcc;
-             double bppMaxVel = settings.RelocParams->maxVel;
              MotionDesc frsPos;
-             bool relocation = false;
-
-             trajType = 3;
-             waitTime = angle0;
+             waitTime = 10.0;
              double trackA, trackB, velK, velT;
              double Altitude_km = 400;
              double Velocity_kms = 7.707;
              double Ground_Track_Offset_km = deltaFi;//-150;
              double Time_Before_Nadir = -(waitTime/2.0 + settings.RelocParams->relaxTime);
              double Nadir_posK = -95.0;
-             double Nadir_posT = 135.0;
              switch(step)
              {
                 case -1:
@@ -283,7 +272,7 @@ namespace Trajectory{
                     {
                         pos->posK = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
                         trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                        pos->posK = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
+                        pos->posT = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
                         pos->velK = 0.0;
                         pos->velT = 0.0;
 
@@ -298,7 +287,7 @@ namespace Trajectory{
                                 velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
                                 trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
                                 frsPos.posK = trackA;
-                                frsPos.posK = trackB;
+                                frsPos.posT = trackB;
                                 frsPos.velK = velK;
                                 frsPos.velT = velT;
                                 relocationTraj.calcSpline(settings.RelocParams->redCoeff * settings.RelocParams->maxVel, settings.RelocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
@@ -309,7 +298,7 @@ namespace Trajectory{
                             break;
                         case 0:
                             relocationTraj.getTrajectory(time, pos);
-                            //setCurrentPos(_currentPosition);
+                            //setCurrentPos(currentPosition);
                             if(time + TACT_H >= relocationTraj.getRelocationTime())
                             {
                                 if(settings.relocType>0)
@@ -343,44 +332,16 @@ namespace Trajectory{
 
 
                  time+=TACT_H;
-
-                 // Проверка корректности полученных параметров
-                 if(fabs(angle) > MAX_ANGLE)
-                 {
-                     retValue = false;
-                     Vel = 0;
-                     angle = angle>0 ? MAX_ANGLE : -MAX_ANGLE;
-                 }
-                 if(trajType!=3 && !relocation)
-                 {
-                    pos->velK = Vel;
-                    pos->posK = angle;
-                    pos->posK = pos->posK;
-                    pos->velT = pos->velK;
-                 }
-
-                 if(modeDesc.angFlag == 1)
-                 {
-                    pos->posK = currentPosition.posK;
-                    pos->velT = 0;
-                }
-                else if(modeDesc.angFlag == 2)
-                {
-                    pos->posK = currentPosition.posK;
-                    pos->velK = 0;
-                }
-
-                 return retValue;
          }
 
-      bool calculate(const Settings& settings, MotionDesc *pos, double& dT)
+      void calculate(Settings& settings, MotionDesc *pos)
             {
                double minKren = settings.Kren[0]+5, minTang = settings.Tang[0]+5, maxKren = settings.Kren[1]-5, maxTang = settings.Tang[1]-5;
                MotionDesc notFilteredTraj;
                if(step==-1 && settings.relocType==2)
                   memcpy(pos, &currentPosition, sizeof(MotionDesc));
 
-               bool retValue = createTrajectory(&notFilteredTraj, settings);
+               createTrajectory(&notFilteredTraj, settings);
                if(!(notFilteredTraj.posK >= minKren && notFilteredTraj.posK <= maxKren))
                   notFilteredTraj.velK = 0.0;
                if(notFilteredTraj.posK < minKren)
@@ -401,13 +362,7 @@ namespace Trajectory{
                else
                   memcpy(pos, &notFilteredTraj, sizeof(MotionDesc));
 
-               return retValue;
-            }
-
-      DynaModes mode() const
-      {
-         return modeDesc.md;
-      }
+               }
 
       void initParams() {
          //инициализируем начальными значениями
@@ -420,9 +375,8 @@ namespace Trajectory{
                           vectord bAxis,
                           vectord zeroDir,
                           vectord trgtDir,
-                          vectord nodeDir,
-                          double Alpha,
-                          double Beta)
+                          vectord nodeDir
+                          )
       {
          // 0.0 Инициализируем необходимые переменные
          double sina=0, sinb=0, cosa=0, cosb=0;
@@ -435,17 +389,12 @@ namespace Trajectory{
          vectord nodeProj,bAsP;
          mul_vf(&bAsP,bAxis,sProd);
          sub_v(&nodeProj,nodeDir,bAsP);
-
-        /* if(abs_v(nodeProj)<CALC_THRESHOLD)
-            return DynError::DpnCalcError;*/
          norm_v(&nodeProj,nodeProj);
          // Это косинус угла м-ду нулевым положением ДПНп и осью (по идее длина проекции в-ра на ось)
          sProd = dot_v(zeroDir,bAxis);
          mul_vf(&bAsP,bAxis,sProd);
          vectord zeroProj;
          sub_v(&zeroProj,zeroDir,bAsP);
-     /*  if(zeroProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;*/
          norm_v(&zeroProj,zeroProj);
          cosb = dot_v(zeroProj,nodeProj);
          cross_v(&vProd,zeroProj,nodeProj);
@@ -458,15 +407,11 @@ namespace Trajectory{
          vectord aAsP;
          mul_vf(&aAsP,aAxis,sProd);
          sub_v(&nodeProj,nodeDir,aAsP);
-        /* if(nodeProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;*/
          norm_v(&nodeProj,nodeProj);
          sProd = dot_v(trgtDir,aAxis); // Это косинус угла м-ду направлением на цель и осью (по идее длина проекции в-ра на ось)
          vectord trgtProj;
          mul_vf(&aAsP,aAxis,sProd);
          sub_v(&trgtProj,trgtDir,aAsP);
-         /*if(trgtProj.absValue()<SudnLib::CALC_THRESHOLD)
-            return DynError::DpnCalcError;*/
          norm_v(&trgtProj,trgtProj);
          cosa = dot_v(nodeProj,trgtProj);
          cross_v(&vProd,nodeProj,trgtProj);
@@ -535,10 +480,10 @@ namespace Trajectory{
          switch(solType)
          {
             case 0:     // Решение из "задней" полусфер
-                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir2, alpha, beta);
+                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir2);
                 break;
             case 1:     // Решение из "передней" полусферы
-                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir1, alpha, beta);
+                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir1);
                 break;
             default:
                 break;
@@ -548,25 +493,17 @@ namespace Trajectory{
          // выбранного узла
             pos->posK = alpha;
             pos->posT = beta;
-
-
       }
 
-      void setCurrentPos(const MotionDesc &currPos)
+      void setCurrentPos(MotionDesc &currPos)
       {
-        double va = (currPos.posK - currentPosition.posK) / TACT_H;
-        double vb = (currPos.posT - currentPosition.posT) / TACT_H;
+        double vk = (currPos.posK - currentPosition.posK) / TACT_H;
+        double vt = (currPos.posT - currentPosition.posT) / TACT_H;
         memcpy(&previousPosition, &currentPosition, sizeof(MotionDesc));
         memcpy(&currentPosition, &currPos, sizeof(MotionDesc));
-        currentPosition.velK = va;
-        currentPosition.velT = vb;
+        currentPosition.velK = vk;
+        currentPosition.velT = vt;
       }
-
-      void zeroCounter(void){ _startCounter = 0;}
-      void increaseCounter(void) { _startCounter++;}
-      uint32_t getCounter(void) {return _startCounter;}
-      void zeroLpfParams(const MotionDesc &currPos) {relocationTraj.setPreFltTraj(currPos);
-                                                    }
 
    protected:
       ModeDesc                      modeDesc;              ///< Уставки на текущий режим наведения
@@ -581,55 +518,48 @@ namespace Trajectory{
       double                           _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
 
 
-      void currentDirection(Settings& settings, double Alpha, double Beta, ModeDesc& data)
+      void currentDirection(Settings& settings, double Alpha, double Beta, ModeDesc& data, Count& es)
       {
-         double dT = 0.0;
          // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
          vectord SrcWGS84;
+         copy_v(&SrcWGS84,es.r0_wgs84);
 
          // Прогнозируем ориентацию станции(ДПН) в системе J2000 на текущий момент времени
-         quaterniond qA;
-         vectord vW;
          quaterniond A0;//SudnLib::foreseen_Q_We(qA, vW, deltaTO, _dpnQuatFrsStep);
-         // Разворот ДПН подвижной, относительно J2000
-         mul_q(&A0,A0,settings._qSm2Dpn);
+         copy_q(&A0,es.FrJ2000toKA);
+
          // Разворот относительно нулей ДПН подвижной на заданные углы
          quaterniond qDpnp2Dpnp={  /* 1.0,0.0,0.0,0.0 */
-          cos(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
-         -cos(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0),
-         -sin(M_PI/180*(175.0-Alpha)/2.0)*cos(M_PI/180*(175.0-Beta)/2.0),
-         -sin(M_PI/180*(175.0-Alpha)/2.0)*sin(M_PI/180*(175.0-Beta)/2.0)
+          cos(M_PI/180*(Alpha)/2.0)*cos(M_PI/180*(Beta)/2.0),
+          sin(M_PI/180*(Alpha)/2.0)*cos(M_PI/180*(Beta)/2.0),
+         -sin(M_PI/180*(Alpha)/2.0)*sin(M_PI/180*(Beta)/2.0),
+          cos(M_PI/180*(Alpha)/2.0)*sin(M_PI/180*(Beta)/2.0)
          };
          mul_q(&A0,A0,qDpnp2Dpnp);
-         // Разворот телескопа ДПН подвижной берем из настроек
-         quaterniond qDpnp2Tel;
-         copy_q(&qDpnp2Tel,settings._qTelescope);
-         conj_q(&qDpnp2Tel,qDpnp2Tel);
-         mul_q(&A0,A0,qDpnp2Tel);
-        conj_q(&A0,A0);
 
          // Матрица перехода от J2000 к WGS84
          matrixd GREEN;
-         //SudnLib::j2000ToGreenvich(GREEN, (double)currSec + (double)currNSec/256.0 - (double)_2hzData.F_ASN_toCorrection_LeapSec + dT);
+         copy_m(&GREEN,es.FrJ2000toWGS);
+
          quaterniond qJ20002Wgs84;
          quaterniond_m(&qJ20002Wgs84,GREEN);
          conj_q(&qJ20002Wgs84,qJ20002Wgs84);
          mul_q(&A0,A0,qJ20002Wgs84);
+         conj_q(&A0,A0);
 
-         matrixd Mtel2Wgs84;       // Матрица перехода от телескопа к WGS84
-         matrixd_q(&Mtel2Wgs84,A0);
+         matrixd MKA02Wgs84;       // Матрица перехода от телескопа к WGS84
+         matrixd_q(&MKA02Wgs84,A0);
          vectord vTel;
-         copy_v(&vTel,settings._vTelB);
+         copy_v(&vTel,settings.vTel);
          vectord vView,s;
-         mul_mv(&s,Mtel2Wgs84,vTel);   // Вектор направления телескопа в WGS84
+         mul_mv(&s,MKA02Wgs84,vTel);   // Вектор направления телескопа в WGS84
          copy_v(&vView,s);
 
-         // Прогнозируем вектор состояния на текущий момент времени
-       //  SrcWGS84 = SudnLib::foreseen_VsWGS84(SrcWGS84, deltaTN, 0, _dpnVectFrsStep);
-
          // Ищем точки пересечения оси визирования телескопа с поверхностью Земли на определенной высоте
-         double polR;// = SudnLib::earthMajorSemiaxis * (1.0 - SudnLib::earthEllipticity) + modeDesc.h;    // Полярный радиус эллипсоида
-         double equR;// = SudnLib::earthMajorSemiaxis + modeDesc.h;                                        // Экваториальный радиус эллипсоида
+
+         double e = 1/298.257223563;
+         double polR = 6378137.0*(1-e);
+         double equR = 6378137.0;
          double polR2 = polR * polR;
          double equR2 = equR * equR;
          // Вычисление коэффициентов квадратного уравнения
@@ -662,6 +592,7 @@ namespace Trajectory{
          vectord pointCoord={SrcWGS84[0] + t*vView[0], SrcWGS84[1] + t*vView[1], SrcWGS84[2] + t*vView[2]};
          // Переводим декартовы координаты в геодезические
          vectord geodes;// = SudnLib::XYZTolbh(pointCoord);
+         WGS84ToGeo($geodes,pointCoord[0],pointCoord[1],pointCoord[2]);
 
 //         data.md = dynModeEarth;
          data.l = geodes[0];
@@ -683,6 +614,8 @@ namespace Trajectory{
             double      relxTime;     ///< Время успокоения платформы при движении с постоянной скоростью
             double      waitTime;     ///< Задержка при измененнии знака ускорения при движении с переменной скоростью
             uint16_t    repeatNum;    ///< Кол-во повторений тестовой траектории
+            double Alpha;
+            double Beta;
    };
 
 }

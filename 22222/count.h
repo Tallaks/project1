@@ -45,6 +45,7 @@ class Count : public Estar
         quaterniond FrKA1toKA;   // кватернион поворота от требуемой системы КА к КА
         quaterniond FrKAtoKA1;   // кватернион поворота от системы КА к требуемой системе КА
         quaterniond FrKAtoPr = {cos(to_rad(45)),0,-sin(to_rad(45)),0};
+        matrixd FrJ2000toWGS;
 
         matrixd1     FrPrtoIK;
         quaterniond  Ik;

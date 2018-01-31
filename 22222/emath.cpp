@@ -425,14 +425,36 @@ void WGS84ToGeo( vectord *a, double X, double Y, double Z){
     vectord A;
     double ae = 6378137.0;
     double ee = 1/298.257223563;
-    double e = 2*ee-ee*ee;
+    double be = ae*(1-ee);
+    double e2 = 2*ee-ee*ee;
+    double e12 = e2/(1-e2);
+    double c = ae/(1-ee);
     double R = sqrt(X*X+Y*Y+Z*Z);
-    double phi = asin(Z/R);
-    double Re = (ae*sqrt(1-e*e))/(sqrt(1-e*e*cos(phi)));
-    double sig = (e*e*sin(phi)*cos(phi))/(1-e*e*cos(phi)*cos(phi));
-    A[0] = phi + Re*sig/R;
-    A[1] = atan(fabs(Y/X));
-    A[2] = (R-Re)*(1-(1/298.257223563)*sig/2);
+    double t;
+    double p,n;
+    p = sqrt(X*X + Y*Y);
+    if(p == 0){
+        A[0] = Z>0 ? 90 : -90;
+        A[1] = 0;
+        A[2] = fabs(Z) - be;
+    }
+    else{
+        t = Z / p * (1 + e12*be / R);
+        for (int i = 1;i<=2;i++){
+            t = t*(t-ee);
+            A[0] = atan(t);
+            t = (Z + e12 * be * pow(sin(A[0]),3)) / (p - e2 * ae * pow(cos(A[0]), 3));
+        }
+        A[1] = atan2(Y,X);
+        A[0] = atan(t);
+        n = c/sqrt(1+e12*pow(cos(A[0]),2));
+        if(fabs(t)<=1){
+            A[2] = p / cos(A[0]) - n;
+        }
+        else{
+            A[2] = Z / sin(A[0]) - n*(1-e2);
+        }
+    }
     copy_v(a,A);
 }
 

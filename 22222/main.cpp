@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-    qApp->addLibraryPath("H:/Qt/Qt5.7.0/5.7/mingw53_32/plugins");   // Задает путь для плагинов Qt
+    qApp->addLibraryPath("F:/Qt/Qt5.7.0/5.7/mingw53_32/plugins");   // Задает путь для плагинов Qt
     QApplication a(argc, argv);                                     // Создаем приложение
     Estar es;                                                    // Создаем основное окошко, имеющее класс Estar
     es.setWindowTitle("Estar Kinematika");                           // Задаем название этого окна Estar Kinematika
