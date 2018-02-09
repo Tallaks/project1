@@ -8,24 +8,42 @@ Count::Count(Estar *parent):Estar(parent)
     parent1 = parent;
     connect(parent->StartButton,SIGNAL(clicked()),this,SLOT(SetStart()));
     connect(parent->StartButton,SIGNAL(clicked()),this,SLOT(ResultMotion()));
-    connect(this,SIGNAL(send_nv(double,double,double,double,double,double,
-                                QTime)),parent,SLOT(update(double,double,double,double,double,
-                                                                                        double,QTime)));
+
+    connect(
+            this,
+            SIGNAL(send_nv(double,double,double,double,double,double,QTime)),
+            parent,
+            SLOT(update(double,double,double,double,double,double,QTime))
+            );
+
     connect(this,SIGNAL(send_geod(double,double,double)),parent,SLOT(updategeod(double,double,double)));
     connect(parent->StopButton,SIGNAL(clicked()),this,SLOT(SetStop()));
     connect(parent->PauseButton,SIGNAL(clicked()),this,SLOT(SetPause()));
-    connect(this,SIGNAL(send_kadr(double,double,double,double,double,double,double,double,double)),parent->DM,SLOT(update(double,double,double,double,double,double,double,double,double)));
     connect(this,SIGNAL(done()),parent,SLOT(Succesed()));
-    connect(this,SIGNAL(send_nev(double,double,double,QDateTime)),parent,SLOT(update1(double,double,double,QDateTime)));
+    connect(this,SIGNAL(send_pr(double,double,double)),parent,SLOT(update1(double,double,double)));
     connect(parent->SpeedUpButton,SIGNAL(clicked()),this,SLOT(speedup()));
     connect(parent->SpeedDownButton,SIGNAL(clicked()),this,SLOT(speeddown()));
     connect(this,SIGNAL(send_ik(double,double,double,double)),parent,SLOT(update_ik(double,double,double,double)));
-    connect(this,SIGNAL(send_graph1(double,double,double,double,double)),parent->demo,SLOT(onDataTimer(double,double,double,double,double)));
 
-    file.setFileName("H:/projects/wgs84.txt");
+    connect(
+            this,
+            SIGNAL(send_graph1(double,double,double,double,double)),
+            parent->demo,
+            SLOT(onDataTimer(double,double,double,double,double))
+            );
+
+    connect(this,SIGNAL(send_geod_point(double,double,double)),parent->DM,SLOT(updateGeodPoint(double,double,double)));
+
+    connect(
+            parent,
+            SIGNAL(send_kadr_position(double,double,int)),
+            this,
+            SLOT(InitTest(double,double,int)));
+
+/*    file.setFileName("H:/projects/wgs84.txt");
     file.open(QIODevice::WriteOnly);
     file1.setFileName("H:/projects/j2000.txt");
-    file1.open(QIODevice::WriteOnly);
+    file1.open(QIODevice::WriteOnly);*/
     DT = parent->dateEdit->dateTime();
     speed = 0;
     SetStop();
@@ -47,9 +65,11 @@ void Count::NevozMotion(){
     omega_ka_nv[1] = omega_ka_nv[1]*180/M_PI;
     omega_ka_nv[2] = omega_ka_nv[2]*180/M_PI;
 
+
+
     matrixd M_SNP;
     j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&FrJ2000toWGS);              // Задание матрицы перевода из системы j2000 в WGS84
-    transp_m(&M_SNP,FrJ2000toWGS);
+    inverse_m(&M_SNP,FrJ2000toWGS);
 
     // Расчет невозмущенного движения методом Рунге-Кутты четвортого порядка
     DiffRungKutt(&r_gamma,&v_gamma,r_gamma,v_gamma,0.2);
@@ -60,9 +80,6 @@ void Count::NevozMotion(){
     mul_mv(&v0_j2000,M_SNP,v0_wgs84);
 
 }
-/*
-NevozMotion - это функция класса Count, моделирующая невозмущенное движение спутника по орбите
-*/
 
 void Count::delay(int n){
     QTime dieTime = QTime::currentTime().addMSecs(n);
@@ -84,28 +101,35 @@ bool countStop = false;
 int j;
 
 void Count::ResultMotion(){
-    DT = parent1->dateEdit->dateTime();
-    while(!countStop){
-        switch(speed){
-            case 0:
-                delay(10);
 
-                break;
-            case 1:
-                delay(500);
-                break;
-            case 2:
-                delay(1000);
-                break;
-            case 3:
-                delay(2500);
-                break;
-            case 4:
-                delay(5000);
-            break;
-            default:
-            delay(100);
-            break;
+    double alpha,beta;
+    alpha=beta=0.0;
+
+    while(!countStop){
+        if(speed > 4){speed = 4;}
+        else{
+            if(speed <0){
+                speed = 0;
+            }
+            else{
+                switch(speed){
+                    case 0:
+                        delay(10);
+                        break;
+                    case 1:
+                        delay(500);
+                        break;
+                    case 2:
+                        delay(1000);
+                        break;
+                    case 3:
+                        delay(2500);
+                        break;
+                    case 4:
+                        delay(5000);
+                        break;
+                 }
+            }
         }
         DT=DT.addMSecs(200);
         tau=tau.addMSecs(200);
@@ -116,7 +140,7 @@ void Count::ResultMotion(){
         omega_KA[1] = omega_KA[1]*M_PI/180;
         omega_KA[2] = omega_KA[2]*M_PI/180;
 
-        intgr_qt(&FrJ2000toKA,FrJ2000toKA,omega_KA,0.1);
+        intgr_qt(&FrJ2000toKA,FrJ2000toKA,omega_KA,0.2);
 
         omega_KA[0] = omega_KA[0]*180/M_PI;
         omega_KA[1] = omega_KA[1]*180/M_PI;
@@ -129,12 +153,14 @@ void Count::ResultMotion(){
                 omega_KA[0],omega_KA[1],omega_KA[2],
                 tau);
        if(j%5 == 0){
-        emit send_graph1(Ik[0],Ik[1],Ik[2],Ik[3],j/5);}
+        emit send_graph1(Ik[0],Ik[1],Ik[2],Ik[3],j/5);
+       }
         j++;
-        emit send_nev(omega_pr[0],omega_pr[1],omega_pr[2],tdn);
+        emit send_pr(omega_pr[0],omega_pr[1],omega_pr[2]);
         emit send_ik(Ik[0],Ik[1],Ik[2],Ik[3]);
         emit send_geod(r0_geod[0]*180/M_PI,r0_geod[1]*180/M_PI,r0_geod[2]/1000);
-        QTextStream ts(&file);
+
+       /* QTextStream ts(&file);
         ts.setFieldWidth(10);
         ts.setFieldAlignment(QTextStream::AlignLeft);
 
@@ -144,7 +170,7 @@ void Count::ResultMotion(){
         ts1.setFieldWidth(10);
         ts1.setFieldAlignment(QTextStream::AlignLeft);
 
-        ts1 << r0_j2000[0]/1000  << r0_j2000[1]/1000 << r0_j2000[2]/1000 <<  DT.time().toString("hh:mm:ss") <<"\n";
+        ts1 << r0_j2000[0]/1000  << r0_j2000[1]/1000 << r0_j2000[2]/1000 <<  DT.time().toString("hh:mm:ss") <<"\n";*/
 
     }
 }
@@ -183,6 +209,7 @@ void Count::SetStartParameters(double lon,double lat){
     r0_geod[2] = Height;
     matrixd M_SNP;
     GeoToWGS84(&r0_wgs84,r0_geod[0],r0_geod[1],r0_geod[2]);                                                        // Перевод из геодезических координат в систему WGS-84
+    DT = QDateTime::currentDateTime();
     j2000::IS_GS(DT.date().year(),DT.date().month(),DT.date().day(),DT.time().hour(),DT.time().minute(),DT.time().second(),&FrJ2000toWGS);              // Задание матрицы перевода из системы j2000 в WGS84
     inverse_m(&M_SNP,FrJ2000toWGS);                                                                                       // Задание матрицы перевода из системы WGS84 в J2000
     mul_mv(&r0_j2000,M_SNP,r0_wgs84);                                                                               //перевод Радиус-вектора КА из системы WGS-84 в систему j2000
@@ -191,7 +218,7 @@ void Count::SetStartParameters(double lon,double lat){
     v0_wgs84[0] = -Velocity*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))));
     v0_wgs84[1] = Velocity*r0_wgs84[0]/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))))*cos(to_rad(Incline));
     v0_wgs84[2] = Velocity*r0_wgs84[0]/sqrt(r0_wgs84[0]*r0_wgs84[0]+ (r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline)))*(r0_wgs84[1]*cos(to_rad(Incline))+r0_wgs84[2]*sin(to_rad(Incline))))*sin(to_rad(Incline));
-    mul_mv(&v0_j2000,FrJ2000toWGS,v0_wgs84);                        //перевод вектора скорости КА из системы WGS-84 в систему j2000
+    mul_mv(&v0_j2000,M_SNP,v0_wgs84);                        //перевод вектора скорости КА из системы WGS-84 в систему j2000
 
     Povorot0(&FrJ2000toKA,r0_j2000,v0_j2000);
 
@@ -222,3 +249,22 @@ SetStartParameters - это функция класса Count, задающая 
     r0_j2000    - Радиус-вектор КА в системе j2000 в начальный момент времени
     v0_j2000    - Скорость КА в системе j2000 в начальный момент времени
 */
+
+void Count::InitTest(double b, double l, int mode){\
+    vectord kadr_WGS84;
+    vectord dir_WGS84, dir_J2000, dir_KA;
+    vectord Tel_wgs84, Tel_KA_WGS,Tel_KA, Tel_KA_J2000;
+    matrixd FrWGStoJ2000;
+    GeoToWGS84(&kadr_WGS84,b,l,0.0);
+    sub_v(&dir_WGS84,kadr_WGS84,r0_wgs84);
+    inverse_m(&FrWGStoJ2000,FrJ2000toWGS);
+    mul_mv(&dir_J2000,FrWGStoJ2000,dir_WGS84);
+    project_v(&dir_KA,dir_J2000,FrJ2000toKA);
+    traj.currentDirection(&settings,pos.posK,pos.posT,&mode_desc,r0_wgs84,v0_wgs84);
+    GeoToWGS84(&Tel_wgs84,mode_desc.b,mode_desc.l,mode_desc.h);
+    sub_v(&Tel_KA_WGS,Tel_wgs84,r0_wgs84);
+    mul_mv(&Tel_KA_J2000,FrWGStoJ2000,Tel_KA_WGS);
+    project_v(&Tel_KA,Tel_KA_J2000,FrJ2000toKA);
+    traj.directionToAngles(&pos,dir_KA,Tel_KA,1);
+    //emit send_geod_point(mode_desc.b*180/M_PI,mode_desc.l*180/M_PI,mode_desc.h/1000);
+}

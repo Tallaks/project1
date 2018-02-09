@@ -1,7 +1,7 @@
 #ifndef TRAJ_H
 #define TRAJ_H
 
-#include "count.h"
+#include "emath.h"
 
 #define TACT_H 0.2
 #define VEL_MAX 3.0
@@ -13,14 +13,9 @@
 
 namespace Trajectory{
 
-    enum DynaErrors{dynErrNumTraj,dynErrBadAngle,dynErrBadTime,dynErrOk};
-
-    enum DynaModes{dynModeConst,dynModeEarth,dynModeStars,dynModeMoon,dynModeSun,dynModeTest};
-
    class MotionDesc
    {
    public:
-       MotionDesc();
        double posK;
        double posT;
        double velK;
@@ -32,7 +27,6 @@ namespace Trajectory{
        double h;
        double b;
        double l;
-       DynaModes md;
        unsigned char angFlag;
    };
 
@@ -61,8 +55,8 @@ namespace Trajectory{
         FltCoeff[1] = 0.776729577;
         FTimeConstant = TACT_H*0.5*(1.0-FltCoeff[0])/FltCoeff[0];
         // Обнуляем значение дробной части липсекунд
+        set_v(&vTel,0.0,1.0,0.0);
         leapSecFrac = 0.0;
-        vTel = {0.0,1.0,0.0};
       }
 
       void initRelocParams(Settings * par)   { RelocParams = par->RelocParams; }
@@ -79,7 +73,7 @@ namespace Trajectory{
       double                           FTimeConstant;       ///< Постоянная времени фильтра нижних частот
       double                           leapSecFrac;           ///< Дробная часть липсекунд
       char                             relocType;             ///< Тип постороения траектории
-      const RelocationPars *        RelocParams;           ///< Структура, описывающая параметры управляемого переброса платформы
+      RelocationPars *        RelocParams;           ///< Структура, описывающая параметры управляемого переброса платформы
    };
 
    class RelocationTraj
@@ -176,7 +170,7 @@ namespace Trajectory{
 
         double getRelocationTime(void) {return relocationTime;}
 
-        void setPreFltTraj(const MotionDesc &currPos) {
+        void setPreFltTraj(MotionDesc &currPos) {
            memcpy(&prevFltTraj, &currPos, sizeof(MotionDesc));
            memcpy(&prevTrajPos, &currPos, sizeof(MotionDesc));
         }
@@ -210,21 +204,12 @@ namespace Trajectory{
                velosity = 0.0;
             }
 
-      DynaErrors init(ModeDesc& data)
+      void init(ModeDesc& data)
              {
-                if(data.b < 0.0 || data.b > 4.0)
-                   return dynErrNumTraj;
-                if(data.l < -MAX_ANGLE || data.l > MAX_ANGLE)
-                   return dynErrBadAngle;
-                if(data.h < 0 && data.b<3.5)
-                   return dynErrBadTime;
-
                 memcpy(&modeDesc, &data, sizeof(ModeDesc));
-
                 set(data.l, 120.0, 60.0, 1.0, 30, 60.0, 10.0);
                 initTrajectory((uint8_t) modeDesc.b);
                 deltaFi = data.h;
-                return dynErrOk;
              }
 
       void initTrajectory(unsigned char mode)
@@ -505,7 +490,6 @@ namespace Trajectory{
         currentPosition.velT = vt;
       }
 
-   protected:
       ModeDesc                      modeDesc;              ///< Уставки на текущий режим наведения
       MotionDesc                    currentPosition;
       MotionDesc                    previousPosition;
@@ -518,39 +502,33 @@ namespace Trajectory{
       double                           _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
 
 
-      void currentDirection(Settings& settings, double Alpha, double Beta, ModeDesc& data, Count& es)
+      void currentDirection(Settings *settings, double Alpha, double Beta, ModeDesc *data, vectord r, vectord v)
       {
          // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
          vectord SrcWGS84;
-         copy_v(&SrcWGS84,es.r0_wgs84);
+         copy_v(&SrcWGS84,r);
 
          // Прогнозируем ориентацию станции(ДПН) в системе J2000 на текущий момент времени
-         quaterniond A0;//SudnLib::foreseen_Q_We(qA, vW, deltaTO, _dpnQuatFrsStep);
-         copy_q(&A0,es.FrJ2000toKA);
+         quaterniond A0,WGS20ka0;
 
          // Разворот относительно нулей ДПН подвижной на заданные углы
-         quaterniond qDpnp2Dpnp={  /* 1.0,0.0,0.0,0.0 */
-          cos(M_PI/180*(Alpha)/2.0)*cos(M_PI/180*(Beta)/2.0),
-          sin(M_PI/180*(Alpha)/2.0)*cos(M_PI/180*(Beta)/2.0),
-         -sin(M_PI/180*(Alpha)/2.0)*sin(M_PI/180*(Beta)/2.0),
-          cos(M_PI/180*(Alpha)/2.0)*sin(M_PI/180*(Beta)/2.0)
+         quaterniond FrKAtoKA0={   /*1.0,0.0,0.0,0.0*/
+          cos(M_PI/180*(180-Alpha)/2.0)*cos(M_PI/180*(180-Beta)/2.0),
+          sin(M_PI/180*(180-Alpha)/2.0)*cos(M_PI/180*(180-Beta)/2.0),
+         -sin(M_PI/180*(180-Alpha)/2.0)*sin(M_PI/180*(180-Beta)/2.0),
+          cos(M_PI/180*(180-Alpha)/2.0)*sin(M_PI/180*(180-Beta)/2.0)
          };
-         mul_q(&A0,A0,qDpnp2Dpnp);
+         conj_q(&FrKAtoKA0,FrKAtoKA0);
+         copy_q(&A0,FrKAtoKA0);
 
-         // Матрица перехода от J2000 к WGS84
-         matrixd GREEN;
-         copy_m(&GREEN,es.FrJ2000toWGS);
-
-         quaterniond qJ20002Wgs84;
-         quaterniond_m(&qJ20002Wgs84,GREEN);
-         conj_q(&qJ20002Wgs84,qJ20002Wgs84);
-         mul_q(&A0,A0,qJ20002Wgs84);
-         conj_q(&A0,A0);
+         Povorot0(&WGS20ka0,r,v);
+         conj_q(&WGS20ka0,WGS20ka0);
+         mul_q(&A0,A0,WGS20ka0);
 
          matrixd MKA02Wgs84;       // Матрица перехода от телескопа к WGS84
          matrixd_q(&MKA02Wgs84,A0);
          vectord vTel;
-         copy_v(&vTel,settings.vTel);
+         copy_v(&vTel,settings->vTel);
          vectord vView,s;
          mul_mv(&s,MKA02Wgs84,vTel);   // Вектор направления телескопа в WGS84
          copy_v(&vView,s);
@@ -591,15 +569,15 @@ namespace Trajectory{
          // Получаем координаты точки пересечения линии визирования с поверхностью эллипсоида
          vectord pointCoord={SrcWGS84[0] + t*vView[0], SrcWGS84[1] + t*vView[1], SrcWGS84[2] + t*vView[2]};
          // Переводим декартовы координаты в геодезические
-         vectord geodes;// = SudnLib::XYZTolbh(pointCoord);
-         WGS84ToGeo($geodes,pointCoord[0],pointCoord[1],pointCoord[2]);
+         vectord geodes;
+         WGS84ToGeo(&geodes,pointCoord[0],pointCoord[1],pointCoord[2]);
 
 //         data.md = dynModeEarth;
-         data.l = geodes[0];
-         data.b = geodes[1];
-         data.h = geodes[2];
-
+         data->l = geodes[0];
+         data->b = geodes[1];
+         data->h = geodes[2];
       }
+
        double      deltaFi;      ///< Угол поворота платформы при движении с постоянной скоростью
    private:
             double      time;         ///< Текущее время на траектории движения

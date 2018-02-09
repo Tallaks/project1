@@ -13,11 +13,11 @@ Count - Это расчетный класс, в котором на данны�
 #define COUNT_H
 
 #include <QObject>
-#include "emath.h"
 #include "j2000.h"
 #include "estar.h"
 #include <QFile>
 
+using namespace Trajectory;
 
 class Count : public Estar
 {
@@ -32,18 +32,9 @@ class Count : public Estar
         vectord v0_wgs84;           // Скорость КА в системе WGS-84
         vectord r0_KA;
         vectord v0_KA;
-        vectord r_kadr_geod;        // Радиус-вектор точки начала съемки в геодезических координатах
-        vectord r_kadr_wgs84;       // Радиус-вектор точки начала съемки в WGS-84
-        vectord r_kadr_j2000;       // Радиус-вектор точки начала съемки в J2000
-        vectord r_kadr_Orb;          // Радиус-вектор точки начала съемки в ОСК
-        vectord r_kadr_KA;
         Estar *parent1;
         quaterniond FrJ2000toKA;    // кватернион поворота от системы j2000 к с.к. КА в произвольный момент времени
         quaterniond FrKAtoJ2000;
-        quaterniond FrKA1toOrb;  // кватернион поворота от требуемой системы КА к ОСК
-        quaterniond FrOrbtoKA1;  // кватернион поворота от системы ОСК к требуемой КА
-        quaterniond FrKA1toKA;   // кватернион поворота от требуемой системы КА к КА
-        quaterniond FrKAtoKA1;   // кватернион поворота от системы КА к требуемой системе КА
         quaterniond FrKAtoPr = {cos(to_rad(45)),0,-sin(to_rad(45)),0};
         matrixd FrJ2000toWGS;
 
@@ -58,13 +49,9 @@ class Count : public Estar
 
         double g_lat;
         double g_lon;
-        double t0;
-        double k0;
-        double kren_fin;
-        double tang_fin;
+
         QDateTime DT;
         QDateTime tdn;
-        double tau_kadr;
         QTime tau;
         int speed;
         void SetStartParameters(double lon, double lat);
@@ -83,6 +70,12 @@ class Count : public Estar
         int MotionMode;
         QFile file,file1;
 
+        Settings settings;
+        ModeDesc mode_desc;
+        ITrajectory traj;
+        MotionDesc pos;
+
+
     public slots:
         void NevozMotion();
         /* NevozMotion - это функция класса Count, моделирующая невозмущенное движение спутника по орбите */
@@ -93,16 +86,17 @@ class Count : public Estar
         void delay(int n);
         void speedup();
         void speeddown();
+        void InitTest(double b, double l, int mode);
 
 
     signals:
         void send_graph(double,double,double,double);
         void send_nv(double,double,double,double,double,double,QTime);
         void send_m(int);
-        void send_kadr(double,double,double,double,double,double,double,double,double);
         void done();
         void send_geod(double,double,double);
-        void send_nev(double,double,double,QDateTime);
+        void send_geod_point(double,double,double);
+        void send_pr(double,double,double);
         void send_ik(double,double,double,double);
         void send_graph1(double,double,double,double,double);
 

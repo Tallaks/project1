@@ -121,7 +121,7 @@ private:
     Succes *S;
 
 signals:
-    void send_kadr_position(double lat, double lon,int mode,QDateTime ndt);
+    void send_kadr_position(double b, double l,int mode);
 
 public slots:
     void movie_started();
@@ -137,7 +137,7 @@ private slots:
     void update(double r00, double r01, double r02, double w00,
                 double w01, double w02, QTime TIME);      // Функция, перезаписывающая значения координат КА, его угл. скорости и текущего времени в соответствующих строках основного окна
     void updategeod(double B,double L,double H);
-    void update1(double wnv0, double wnv1, double wnv2, QDateTime ntd);
+    void update1(double wnv0, double wnv1, double wnv2);
     void update_ik(double ik1,double ik2,double ik3,double ik4);
 };
 

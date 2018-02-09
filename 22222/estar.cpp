@@ -49,13 +49,13 @@ Estar::Estar(QWidget *parent)
 
 
 
-// Создание подписи "Высота в км"
+// Создание подписи "Начальная высота в км"
     label1 = new QLabel;
     label1->setText("Высота в км");
 
-// Создание записи "720"
+// Создание записи "650"
     HeightLine = new QLabel;
-    HeightLine->setText("720");
+    HeightLine->setText("650");
 
 // Объединение двух записей по горизонтали
     hbl1->addWidget(label1);
@@ -348,16 +348,16 @@ void Estar::movie_started(){
     lon = DM->L->text().toDouble();
     QDateTime ndt = DM->NavedDateTime->dateTime();
     if(DM->radio1->isChecked()){
-        emit send_kadr_position(lat,lon,1,ndt);
+        emit send_kadr_position(lat,lon,1);
     }
     if(DM->radio2->isChecked()){
-        emit send_kadr_position(lat,lon,2,ndt);
+        emit send_kadr_position(lat,lon,2);
     }
     if(DM->radio3->isChecked()){
-        emit send_kadr_position(lat,lon,3,ndt);
+        emit send_kadr_position(lat,lon,3);
     }
     if(DM->radio4->isChecked()){
-        emit send_kadr_position(lat,lon,4,ndt);
+        emit send_kadr_position(lat,lon,4);
     }
 }
 
@@ -465,7 +465,7 @@ void Estar::updategeod(double B, double L, double H){
     this->GeodLineH->setText(s3);
 }
 
-void Estar::update1(double wnv0, double wnv1, double wnv2,QDateTime ntd){
+void Estar::update1(double wnv0, double wnv1, double wnv2){
     QString s1,s2,s3;
     // Запись значений r00 r01 и r02 в поля вывода координат КА
     s1    = QString::number(wnv0,'g',8);
@@ -475,7 +475,6 @@ void Estar::update1(double wnv0, double wnv1, double wnv2,QDateTime ntd){
     this->omega_PR_y_label->setText(s2);
     this->omega_PR_z_label->setText(s3);
     //this->StartDate = ntd;
-    this->dateEdit->setDateTime(ntd);
 }
 
 void Estar::update_ik(double ik1,double ik2,double ik3,double ik4){

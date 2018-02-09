@@ -14,6 +14,8 @@ DialogMotion - это класс диалогового окна, вызывае
 #include <QLabel>
 #include <QTime>
 #include <QDateTimeEdit>
+#include "traj.h"
+
 
 class DialogMotion : public QDialog
 {
@@ -32,8 +34,13 @@ public:
     QLabel *omega_UPR_x_label;
     QLabel *omega_UPR_y_label;
     QLabel *omega_UPR_z_label;
-    QLabel *phi_label;
-    QLabel *R_label;
+    QLabel *geodPointB;
+    QLabel *geodPointL;
+    QLabel *geodPointH;
+
+    QLabel *kren;
+    QLabel *tang;
+
     QLabel *Lambda0_label;
     QLabel *Lambda1_label;
     QLabel *Lambda2_label;
@@ -43,7 +50,7 @@ public:
     QLineEdit *L;
 
 public slots:
-    void update(double phi, double R, double w0, double w1, double w2,double l0,double l1,double l2,double l3);
+    void updateGeodPoint(double b,double l,double H);
 
 };
 
