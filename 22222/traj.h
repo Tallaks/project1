@@ -490,19 +490,24 @@ namespace Trajectory{
         currentPosition.velT = vt;
       }
 
-      ModeDesc                      modeDesc;              ///< Уставки на текущий режим наведения
+      ModeDesc                      modeDesc;              // Уставки на текущий режим наведения
       MotionDesc                    currentPosition;
       MotionDesc                    previousPosition;
-      RelocationTraj                   relocationTraj;
-      uint32_t                         _startCounter;          ///< Счетчик тактов при рестарете траектории
-      int16_t                          step;                  ///< Текущее положение на траектории
-      double                           _MAX_FORESEEN_TIME;     ///< Максммальное время прогноза вектора состояния и ориентации
-      double                           _dpnQuatFrsStep;        ///< Шаг интегрирования кватерниона, с
-      double                           _dpnVectFrsStep;        ///< Шаг интегрирования вектора состояния, с
-      double                           _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
+      RelocationTraj                relocationTraj;
+      int16_t                       step;                  ///< Текущее положение на траектории
+      double                        _MAX_FORESEEN_TIME;     ///< Максммальное время прогноза вектора состояния и ориентации
+      double                        _dpnQuatFrsStep;        ///< Шаг интегрирования кватерниона, с
+      double                        _dpnVectFrsStep;        ///< Шаг интегрирования вектора состояния, с
+      double                        _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
 
+/*
+ *  currentDirection -
+ *  функция класса Trajectory, выдающая значение
+ *  геодезических координат точки пересечения
+ *  линии визирования и поверхности земного эллипсоида
+ */
 
-      void currentDirection(Settings *settings, double Alpha, double Beta, ModeDesc *data, vectord r, vectord v)
+      void currentDirection(Settings settings, double Alpha, double Beta, ModeDesc *data, vectord r, vectord v)
       {
          // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
          vectord SrcWGS84;
@@ -528,7 +533,7 @@ namespace Trajectory{
          matrixd MKA02Wgs84;       // Матрица перехода от телескопа к WGS84
          matrixd_q(&MKA02Wgs84,A0);
          vectord vTel;
-         copy_v(&vTel,settings->vTel);
+         copy_v(&vTel,settings.vTel);
          vectord vView,s;
          mul_mv(&s,MKA02Wgs84,vTel);   // Вектор направления телескопа в WGS84
          copy_v(&vView,s);

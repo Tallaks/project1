@@ -24,7 +24,9 @@ Estar - это класс основного окна, в котором на д
 #include <QComboBox>
 #include <QThread>
 #include "succes.h"
-#include "realtimezoomscroll.h"
+#include "GraphIK.h"
+#include "graphka.h"
+#include "graphpr.h"
 
 class Estar : public QWidget
 {
@@ -47,7 +49,10 @@ public:
     QPushButton *SpeedDownButton;
     DialogMotion *DM;               //  Диалоговое окно выбора режима съемки спутника
                                     //  Параметры и свойства окна можно посмотреть в dialogmotion.h
-    RealTimeZoomScroll *demo;
+    GraphIK *IK_Graph;
+    GraphKA *KA_Graph;
+    GraphPR *PR_Graph;
+
     QDateTimeEdit *dateEdit;            //  Элемент вывода даты (пока не используется)
 
 private:

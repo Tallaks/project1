@@ -322,7 +322,9 @@ Estar::Estar(QWidget *parent)
 
 // Создание элементов для графического окна, дополнительного потока, диалогового окна и расчетного класса
    DM = new DialogMotion;
- demo = new RealTimeZoomScroll;
+   KA_Graph = new GraphKA;
+   PR_Graph = new GraphPR;
+   IK_Graph = new GraphIK;
 
    connect(DM->ChangeButton,&QPushButton::clicked,this,&Estar::movie_started);
 // Задание стартового режима окна STOP
@@ -378,7 +380,19 @@ void Estar::StopButton_clicked(){
 
 // Описание слота нажатия на кнопку График
 void Estar::GraphButton_clicked(){
-    demo->show();
+    int mode;
+    switch(this->GraphView->currentIndex()){
+      case 0:
+        KA_Graph->show();
+        break;
+      case 1:
+        PR_Graph->show();
+        break;
+      case 2:
+        IK_Graph->show();
+      default:
+        break;
+    }
 }
 
 // Описание слота нажатия на кнопку Выход

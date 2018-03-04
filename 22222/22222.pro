@@ -20,7 +20,9 @@ SOURCES += main.cpp\
     dialogmotion.cpp \
     succes.cpp \
     qchartviewer.cpp \
-    realtimezoomscroll.cpp
+    GraphIK.cpp \
+    graphka.cpp \
+    graphpr.cpp
 
 HEADERS  += estar.h \
     emath.h \
@@ -29,8 +31,10 @@ HEADERS  += estar.h \
     dialogmotion.h \
     succes.h \
     qchartviewer.h \
-    realtimezoomscroll.h \
-    traj.h
+    traj.h \
+    GraphIK.h \
+    graphka.h \
+    graphpr.h
 
 RESOURCES += \
     realtimezoomscroll.qrc

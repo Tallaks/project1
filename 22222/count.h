@@ -87,10 +87,11 @@ class Count : public Estar
         void speedup();
         void speeddown();
         void InitTest(double b, double l, int mode);
+        void SightingPoint(vectord dir_KA);
 
 
     signals:
-        void send_graph(double,double,double,double);
+        void send_graph_KA(double,double,double,double);
         void send_nv(double,double,double,double,double,double,QTime);
         void send_m(int);
         void done();
@@ -98,7 +99,8 @@ class Count : public Estar
         void send_geod_point(double,double,double);
         void send_pr(double,double,double);
         void send_ik(double,double,double,double);
-        void send_graph1(double,double,double,double,double);
+        void send_graphIK(double,double,double,double,double);
+        void send_graph_PR(double,double,double,double);
 
 };
 

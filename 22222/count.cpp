@@ -8,6 +8,14 @@ Count::Count(Estar *parent):Estar(parent)
     parent1 = parent;
     connect(parent->StartButton,SIGNAL(clicked()),this,SLOT(SetStart()));
     connect(parent->StartButton,SIGNAL(clicked()),this,SLOT(ResultMotion()));
+    connect(parent->StopButton,SIGNAL(clicked()),this,SLOT(SetStop()));
+    connect(parent->PauseButton,SIGNAL(clicked()),this,SLOT(SetPause()));
+    connect(parent->SpeedUpButton,SIGNAL(clicked()),this,SLOT(speedup()));
+    connect(parent->SpeedDownButton,SIGNAL(clicked()),this,SLOT(speeddown()));
+
+    /*  Связь данных о координатах, угловой скорости и времени полета КА
+     *  с соответствующими ячейками в главном окне
+     */
 
     connect(
             this,
@@ -16,23 +24,78 @@ Count::Count(Estar *parent):Estar(parent)
             SLOT(update(double,double,double,double,double,double,QTime))
             );
 
+    /*
+     *  Связь данных о геодезических координатах
+     *  с соответсвующими ячейками в главном окне
+     */
+
     connect(this,SIGNAL(send_geod(double,double,double)),parent,SLOT(updategeod(double,double,double)));
-    connect(parent->StopButton,SIGNAL(clicked()),this,SLOT(SetStop()));
-    connect(parent->PauseButton,SIGNAL(clicked()),this,SLOT(SetPause()));
+
+    /*
+     *  Отправка сигнала для выдачи сообщения об успешной съемке
+     */
+
     connect(this,SIGNAL(done()),parent,SLOT(Succesed()));
+
+    /*
+     *  Связь данных об угловой скорости в приборной с. к.
+     *  с соответствующими ячейками в главном окне
+     */
+
     connect(this,SIGNAL(send_pr(double,double,double)),parent,SLOT(update1(double,double,double)));
-    connect(parent->SpeedUpButton,SIGNAL(clicked()),this,SLOT(speedup()));
-    connect(parent->SpeedDownButton,SIGNAL(clicked()),this,SLOT(speeddown()));
+
+    /*
+     *  Связь показаний измерительных каналов
+     *  с соответствующими ячейками в главном окне
+     */
+
     connect(this,SIGNAL(send_ik(double,double,double,double)),parent,SLOT(update_ik(double,double,double,double)));
+
+    /*
+     *  Перенос нужных данных в графическое окно
+     */
 
     connect(
             this,
-            SIGNAL(send_graph1(double,double,double,double,double)),
-            parent->demo,
+            SIGNAL(send_graphIK(double,double,double,double,double)),
+            parent->IK_Graph,
             SLOT(onDataTimer(double,double,double,double,double))
             );
 
+    /*
+     *  Перенос нужных данных в графическое окно
+     */
+
+    connect(
+            this,
+            SIGNAL(send_graph_PR(double,double,double,double)),
+            parent->PR_Graph,
+            SLOT(onDataTimer(double,double,double,double))
+            );
+
+    /*
+     *  Перенос нужных данных в графическое окно
+     */
+
+    connect(
+            this,
+            SIGNAL(send_graph_KA(double,double,double,double)),
+            parent->KA_Graph,
+            SLOT(onDataTimer(double,double,double,double))
+            );
+
+    /*
+     *  Связь данных о геодезических координатах точки визирования
+     *  с соответствующими ячейками в окне режима съемки
+     */
+
     connect(this,SIGNAL(send_geod_point(double,double,double)),parent->DM,SLOT(updateGeodPoint(double,double,double)));
+
+    /*
+     *  Сигнал с начальными данными в виде геодезических координат
+     *  начала съемки и типа съемки передается в функцию,
+     * инициализирующую движение
+     */
 
     connect(
             parent,
@@ -153,7 +216,9 @@ void Count::ResultMotion(){
                 omega_KA[0],omega_KA[1],omega_KA[2],
                 tau);
        if(j%5 == 0){
-        emit send_graph1(Ik[0],Ik[1],Ik[2],Ik[3],j/5);
+        emit send_graphIK(Ik[0],Ik[1],Ik[2],Ik[3],j/5);
+        emit send_graph_KA(omega_KA[0],omega_KA[1],omega_KA[2],j/5);
+        emit send_graph_PR(omega_pr[0],omega_pr[1],omega_pr[2],j/5);
        }
         j++;
         emit send_pr(omega_pr[0],omega_pr[1],omega_pr[2]);
@@ -189,7 +254,17 @@ void Count::SetStart(){
    countStop = false;
 }
 
-
+/*
+SetStartParameters - это функция класса Count, задающая параметры движения КА в начальный момент времени
+Входные переменные:
+    lon         - геодезическая долгота
+    lat         - геодезическая широта
+Выходные данные:
+    omega_j2000 - Вектор угловой скорости КА в системе J2000 (вращение вокруг Земли)
+    M0          - Кватернион поворота от системы j2000 в систему КА
+    r0_j2000    - Радиус-вектор КА в системе j2000 в начальный момент времени
+    v0_j2000    - Скорость КА в системе j2000 в начальный момент времени
+*/
 
 void Count::SetStartParameters(double lon,double lat){
     MotionMode = 0;
@@ -238,33 +313,49 @@ void Count::SetStartParameters(double lon,double lat){
     FrPrtoIK[3][1] = cos(to_rad(45));
     FrPrtoIK[3][2] = -cos(to_rad(45));
 }
+
 /*
-SetStartParameters - это функция класса Count, задающая параметры движения КА в начальный момент времени
-Входные переменные:
-    lon         - геодезическая долгота
-    lat         - геодезическая широта
-Выходные данные:
-    omega_j2000 - Вектор угловой скорости КА в системе J2000 (вращение вокруг Земли)
-    M0          - Кватернион поворота от системы j2000 в систему КА
-    r0_j2000    - Радиус-вектор КА в системе j2000 в начальный момент времени
-    v0_j2000    - Скорость КА в системе j2000 в начальный момент времени
-*/
+ *  InitTest - функция инициализации режима съемки
+ *  Входные переменные:
+ *      b - геодезическая широта начальной точки съемки
+ *      l - геодезическая долгота начальной точки съемки
+ *      mode - тип съемки
+ *  Выходные переменные:
+ *
+ */
 
 void Count::InitTest(double b, double l, int mode){\
     vectord kadr_WGS84;
     vectord dir_WGS84, dir_J2000, dir_KA;
-    vectord Tel_wgs84, Tel_KA_WGS,Tel_KA, Tel_KA_J2000;
     matrixd FrWGStoJ2000;
+    // Перевод геодезических координат точки съемки в географические
     GeoToWGS84(&kadr_WGS84,b,l,0.0);
+    // Нахождение вектора от КА до точки съемки
     sub_v(&dir_WGS84,kadr_WGS84,r0_wgs84);
+    // Задание матрицы перевода из гринвичской с.к. в J2000
     inverse_m(&FrWGStoJ2000,FrJ2000toWGS);
+    // Нахождение вектора от точки съемки до КА в J2000
     mul_mv(&dir_J2000,FrWGStoJ2000,dir_WGS84);
+    // Нахождение вектора от точки съемки до КА в с.к. КА
     project_v(&dir_KA,dir_J2000,FrJ2000toKA);
-    traj.currentDirection(&settings,pos.posK,pos.posT,&mode_desc,r0_wgs84,v0_wgs84);
+}
+
+void Count::SightingPoint(vectord dir_KA){
+    vectord Tel_wgs84, Tel_KA_WGS,Tel_KA, Tel_KA_J2000;
+      matrixd FrWGStoJ2000;
+    // Задание матрицы перевода из гринвичской с.к. в J2000
+    inverse_m(&FrWGStoJ2000,FrJ2000toWGS);
+    // Вычисление точки пересечения линии визирования
+    // с земной поверхности в геодезических координатах
+    traj.currentDirection(settings,pos.posK,pos.posT,&mode_desc,r0_wgs84,v0_wgs84);
+    // Перевод полученной точки из геодезических координат в гринвичские
     GeoToWGS84(&Tel_wgs84,mode_desc.b,mode_desc.l,mode_desc.h);
+    // Нахождение вектора от точки визирования до КА в гринвичской КА
     sub_v(&Tel_KA_WGS,Tel_wgs84,r0_wgs84);
+    // Перевод полученного вектора из гринвичской с.к. в J2000
     mul_mv(&Tel_KA_J2000,FrWGStoJ2000,Tel_KA_WGS);
+    // И последующий его перевод в с.к. КА
     project_v(&Tel_KA,Tel_KA_J2000,FrJ2000toKA);
+    // Определение углов крена и тангажа для перехода к точке
     traj.directionToAngles(&pos,dir_KA,Tel_KA,1);
-    //emit send_geod_point(mode_desc.b*180/M_PI,mode_desc.l*180/M_PI,mode_desc.h/1000);
 }
