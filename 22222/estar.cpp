@@ -12,6 +12,7 @@ Estar - это класс основного окна, в котором на д
 #include"QtWidgets"
 #include <QThread>
 #include <QFile>
+#include <QErrorMessage>
 
 //Count *c = new Count(this);
 
@@ -346,20 +347,29 @@ void Estar::Succesed(){
 
 void Estar::movie_started(){
     double lat,lon;
+    QErrorMessage err;
     lat = DM->B->text().toDouble();
     lon = DM->L->text().toDouble();
     QDateTime ndt = DM->NavedDateTime->dateTime();
     if(DM->radio1->isChecked()){
         emit send_kadr_position(lat,lon,1);
-    }
-    if(DM->radio2->isChecked()){
-        emit send_kadr_position(lat,lon,2);
-    }
-    if(DM->radio3->isChecked()){
-        emit send_kadr_position(lat,lon,3);
-    }
-    if(DM->radio4->isChecked()){
-        emit send_kadr_position(lat,lon,4);
+    }else{
+        if(DM->radio2->isChecked()){
+            emit send_kadr_position(lat,lon,2);
+        }else{
+            if(DM->radio3->isChecked()){
+                emit send_kadr_position(lat,lon,3);
+           }else{
+                if(DM->radio4->isChecked()){
+                    emit send_kadr_position(lat,lon,4);
+                }else{
+                    emit PauseButton->clicked();
+                    err.setWindowTitle("ERROR");
+                    err.showMessage("The motion mode wasn't chosen!");
+                    err.exec();
+                }
+            }
+        }
     }
 }
 

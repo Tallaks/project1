@@ -74,6 +74,7 @@ class Count : public Estar
         ModeDesc mode_desc;
         ITrajectory traj;
         MotionDesc pos;
+        MotionDesc reqpos;
 
 
     public slots:

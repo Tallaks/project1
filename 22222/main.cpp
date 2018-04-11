@@ -2,6 +2,7 @@
 #include "count.h"
 #include <QApplication>
 #include <QMainWindow>
+#include <QErrorMessage>
 
 int main(int argc, char *argv[])
 {
@@ -12,5 +13,6 @@ int main(int argc, char *argv[])
   //  w.show();                                                       // Выводим основное окно
     Count c(&es);
     es.show();
-    return a.exec();                                                // Запускаем приложение
+    return a.exec();                                               // Запускаем приложение
+
 }

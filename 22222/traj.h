@@ -59,7 +59,7 @@ namespace Trajectory{
         leapSecFrac = 0.0;
       }
 
-      void initRelocParams(Settings * par)   { RelocParams = par->RelocParams; }
+      void initRelocParams(Settings * par)   { relocParams = par->relocParams; }
 
       quaterniond                      _qSm2DpnP0;             ///< Установочный кватернион ДПНП0 (СМ->ДПНП0)
       quaterniond                      _qSm2Dpn;               ///< Установочный кватернион ДПН   (СМ->ДПН)
@@ -73,7 +73,7 @@ namespace Trajectory{
       double                           FTimeConstant;       ///< Постоянная времени фильтра нижних частот
       double                           leapSecFrac;           ///< Дробная часть липсекунд
       char                             relocType;             ///< Тип постороения траектории
-      RelocationPars *        RelocParams;           ///< Структура, описывающая параметры управляемого переброса платформы
+      RelocationPars *                 relocParams;           ///< Структура, описывающая параметры управляемого переброса платформы
    };
 
    class RelocationTraj
@@ -248,11 +248,13 @@ namespace Trajectory{
              double Altitude_km = 400;
              double Velocity_kms = 7.707;
              double Ground_Track_Offset_km = deltaFi;//-150;
-             double Time_Before_Nadir = -(waitTime/2.0 + settings.RelocParams->relaxTime);
+             double Time_Before_Nadir = -(waitTime/2.0 + settings.relocParams->relaxTime);
              double Nadir_posK = -95.0;
+             double Vel,VelN;
+             double MaxAcc = 3;
              switch(step)
              {
-                case -1:
+              /*  case -1:
                     if(settings.relocType == 0)
                     {
                         pos->posK = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
@@ -263,59 +265,183 @@ namespace Trajectory{
 
                         if(time + TACT_H > initTime)
                                      step = 1;
-                     }
-                            else
-                            {
-                                trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
-                                velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
-                                trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                                velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
-                                trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
-                                frsPos.posK = trackA;
-                                frsPos.posT = trackB;
-                                frsPos.velK = velK;
-                                frsPos.velT = velT;
-                                relocationTraj.calcSpline(settings.RelocParams->redCoeff * settings.RelocParams->maxVel, settings.RelocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
-                                memcpy(pos, &currentPosition, sizeof(MotionDesc));
-                                relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
-                                step++;
-                            }
+                     }else{
+                        trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
+                        velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
+                        trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
+                        velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
+                        trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
+                        frsPos.posK = trackA;
+                        frsPos.posT = trackB;
+                        frsPos.velK = velK;
+                        frsPos.velT = velT;
+                        relocationTraj.calcSpline(settings.RelocParams->redCoeff * settings.RelocParams->maxVel, settings.RelocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                        memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                        relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
+                        step++;
+                        }
+                  break;
+                  case 0:
+                       relocationTraj.getTrajectory(time, pos);
+                       //setCurrentPos(currentPosition);
+                       if(time + TACT_H >= relocationTraj.getRelocationTime())
+                       {
+                            if(settings.relocType>0)
+                                time-=relocationTraj.getRelocationTime();
+                            step++;
+                       }
                             break;
-                        case 0:
-                            relocationTraj.getTrajectory(time, pos);
-                            //setCurrentPos(currentPosition);
-                            if(time + TACT_H >= relocationTraj.getRelocationTime())
-                            {
-                                if(settings.relocType>0)
-                                    time-=relocationTraj.getRelocationTime();
-                                step++;
-                            }
-                            break;
-                        case 1:
-                            if(settings.relocType == 0)
-                                Time_Before_Nadir = time - initTime - (waitTime/2.0 + settings.RelocParams->relaxTime);
-                            else
-                                Time_Before_Nadir = time - (waitTime/2.0 + settings.RelocParams->relaxTime);
-                            /* Расчет траектории движения */
-                            trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
-                            velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
-                            trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                            velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
-                            trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
-                            pos->posK = trackA;
-                            pos->posK = trackB;
-                            pos->velK = velK;
-                            pos->velT = velT;
-                            if(time + TACT_H >= relocationTraj.getRelocationTime() + settings.RelocParams->relaxTime + waitTime)
-                               step++;
-                            break;
-                        case 2:
+                  case 1:
+                       if(settings.relocType == 0)
+                            Time_Before_Nadir = time - initTime - (waitTime/2.0 + settings.RelocParams->relaxTime);
+                       else
+                            Time_Before_Nadir = time - (waitTime/2.0 + settings.RelocParams->relaxTime);
+                       /* Расчет траектории движения */
+                   /*    trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
+                       velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
+                       trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
+                       velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
+                       trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
+                       pos->posK = trackA;
+                       pos->posK = trackB;
+                       pos->velK = velK;
+                       pos->velT = velT;
+                       if(time + TACT_H >= relocationTraj.getRelocationTime() + settings.RelocParams->relaxTime + waitTime)
+                           step++;
+                  break;
+                  case 2:
                             memcpy(pos, &currentPosition, sizeof(MotionDesc));
                             break;
+                    }*/
+                  /* Шаг 1: Переброс платформы */
+                  // Ожидание начала движения либо расчет траектории переброса
+                  case -1:
+                        if(settings.relocType == 0)
+                            if(time > initTime)
+                                step = 1;
+                            else
+                                Vel = 0.0;
+                        else
+                        {
+                            frsPos.posK = angle0;
+                            frsPos.posT = angle0;
+                            frsPos.velK = Vel;
+                            frsPos.velT = Vel;
+                            relocationTraj.calcSpline(settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                            memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                            relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
+                            step++;
+                         }
+                    break;
+                    // Переброс платформы из текущего положения в необходимое для начала движения
+                    case 0:
+                        relocationTraj.getTrajectory(time, pos);
+                        if(time >= relocationTraj.getRelocationTime())
+                            step++;
+                    break;
+                    /* Шаг 2: Разгон с постоянной скоростью + движение */
+                    case 1:
+                        if(angle < angle0 + deltaFi)
+                        {
+                            VelN = Vel;
+                            angle += (Vel+VelN)/2.0*TACT_H;
+                        }
+                        else
+                        {
+                            step++;
+                            stopTime = time;
+                            if(settings.relocType > 0)
+                            {
+                                frsPos.posK = angle + Vel*Vel/MaxAcc - Vel*Vel/(2.0*MaxAcc);
+                                frsPos.posT = frsPos.posK;
+                                frsPos.velK = 0.0;
+                                frsPos.velT = 0.0;
+                                angle = frsPos.posK;
+                                relocationTraj.calcSpline(settings.relocParams->redCoeff * settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                                memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                                relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
+                            }
+                        }
+                    break;
+                    /* Шаг 3: Ожидание успокоения платформы */
+                    case 2:
+                        if(time < stopTime + waitTime)
+                        {
+                            Vel=0.0;
+                            VelN = Vel;
+                            angle += (Vel+VelN)/2.0*TACT_H;
+                            if(settings.relocType > 0 && time <= stopTime + relocationTraj.getRelocationTime())
+                            {
+                                relocationTraj.getTrajectory(time - stopTime, pos);
+                            }
+                        }
+                        else
+                        {
+                            step ++;
+                            if(settings.relocType > 0)
+                            {
+                                frsPos.posK = angle - Vel*Vel/(2.0*MaxAcc);
+                                frsPos.posT = frsPos.posT;
+                                frsPos.velK = -Vel;
+                                frsPos.velT = -Vel;
+                                angle = frsPos.posK;
+                                relocationTraj.calcSpline(settings.relocParams->redCoeff * settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                                memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                                relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
+                            }
+                        }
+                        Vel=0.0;
+                    break;
+                    /* Шаг 4: Движение в обратную сторону */
+                    case 3:
+                        if(settings.relocType > 0 && time <= stopTime + waitTime + relocationTraj.getRelocationTime())
+                        {
+                            relocationTraj.getTrajectory(time - stopTime - waitTime, pos);
+                        }
+                        else
+                        {
+                            Vel=-Vel;
+                            if(angle>=angle0)
+                            {
+                                VelN = Vel;
+                                angle += (Vel+VelN)/2.0*TACT_H;
+                            }
+                            else
+                            {
+                                if(settings.relocType > 0)
+                                {
+                                    frsPos.posK = angle - Vel*Vel/MaxAcc + Vel*Vel/(2.0*MaxAcc);
+                                    frsPos.posT = frsPos.posK;
+                                    frsPos.velK = 0;
+                                    frsPos.velT = 0;
+                                    angle = frsPos.posK;
+                                    relocationTraj.calcSpline(settings.relocParams->redCoeff * settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                                    memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                                    relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
+                                    stopTime = time;
+                                    step++;
+                                }
+                                else
+                                step = 5;
+                            }
                     }
-
-
-
+                    break;
+                    case 4:
+                        if(settings.relocType > 0 && time <= stopTime + relocationTraj.getRelocationTime())
+                        {
+                            relocationTraj.getTrajectory(time - stopTime, pos);
+                        }
+                        else
+                        {
+                            step++;
+                            Vel = 0;
+                        }
+                    break;
+                    case 5:
+                        memcpy(pos, &currentPosition, sizeof(MotionDesc));
+                        //initTrajectory(mode);
+                    break;
+            }
                  time+=TACT_H;
          }
 

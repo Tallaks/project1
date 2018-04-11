@@ -101,12 +101,13 @@ Count::Count(Estar *parent):Estar(parent)
             parent,
             SIGNAL(send_kadr_position(double,double,int)),
             this,
-            SLOT(InitTest(double,double,int)));
+            SLOT(InitTest(double,double,int))
+            );
 
-/*    file.setFileName("H:/projects/wgs84.txt");
+    file.setFileName("F:/projects/Geod.txt");
     file.open(QIODevice::WriteOnly);
     file1.setFileName("H:/projects/j2000.txt");
-    file1.open(QIODevice::WriteOnly);*/
+    file1.open(QIODevice::WriteOnly);
     DT = parent->dateEdit->dateTime();
     speed = 0;
     SetStop();
@@ -164,11 +165,8 @@ bool countStop = false;
 int j;
 
 void Count::ResultMotion(){
-
-    double alpha,beta;
-    alpha=beta=0.0;
-
     while(!countStop){
+        // Переключатель скорости обработки информации
         if(speed > 4){speed = 4;}
         else{
             if(speed <0){
@@ -197,7 +195,6 @@ void Count::ResultMotion(){
         DT=DT.addMSecs(200);
         tau=tau.addMSecs(200);
         NevozMotion();
-
         add_v(&omega_KA,omega_ka_nv,omega_upr);
         omega_KA[0] = omega_KA[0]*M_PI/180;
         omega_KA[1] = omega_KA[1]*M_PI/180;
@@ -219,23 +216,17 @@ void Count::ResultMotion(){
         emit send_graphIK(Ik[0],Ik[1],Ik[2],Ik[3],j/5);
         emit send_graph_KA(omega_KA[0],omega_KA[1],omega_KA[2],j/5);
         emit send_graph_PR(omega_pr[0],omega_pr[1],omega_pr[2],j/5);
+
+       /* QTextStream ts(&file);
+
+        ts << r0_geod[0]*180/M_PI  <<";"<< r0_geod[1]*180/M_PI <<";"<< r0_geod[2]/1000 <<";"<<  tau.toString("hh:mm:ss") <<"\n";*/
        }
         j++;
         emit send_pr(omega_pr[0],omega_pr[1],omega_pr[2]);
         emit send_ik(Ik[0],Ik[1],Ik[2],Ik[3]);
         emit send_geod(r0_geod[0]*180/M_PI,r0_geod[1]*180/M_PI,r0_geod[2]/1000);
 
-       /* QTextStream ts(&file);
-        ts.setFieldWidth(10);
-        ts.setFieldAlignment(QTextStream::AlignLeft);
-
-        ts << r0_wgs84[0]/1000  << r0_wgs84[1]/1000 << r0_wgs84[2]/1000 <<  DT.time().toString("hh:mm:ss") <<"\n";
-
-        QTextStream ts1(&file1);
-        ts1.setFieldWidth(10);
-        ts1.setFieldAlignment(QTextStream::AlignLeft);
-
-        ts1 << r0_j2000[0]/1000  << r0_j2000[1]/1000 << r0_j2000[2]/1000 <<  DT.time().toString("hh:mm:ss") <<"\n";*/
+        traj.setCurrentPos(pos);
 
     }
 }
@@ -312,6 +303,16 @@ void Count::SetStartParameters(double lon,double lat){
     FrPrtoIK[3][0] = cos(to_rad(54.7356));
     FrPrtoIK[3][1] = cos(to_rad(45));
     FrPrtoIK[3][2] = -cos(to_rad(45));
+
+    traj.currentPosition.posK = 0;
+    traj.currentPosition.posT = 0;
+    traj.currentPosition.velK = 0;
+    traj.currentPosition.velT = 0;
+
+    pos.posK = 0;
+    pos.posT = 0;
+    pos.velK = 0;
+    pos.velT = 0;
 }
 
 /*
@@ -321,7 +322,7 @@ void Count::SetStartParameters(double lon,double lat){
  *      l - геодезическая долгота начальной точки съемки
  *      mode - тип съемки
  *  Выходные переменные:
- *
+ *      dir_KA -
  */
 
 void Count::InitTest(double b, double l, int mode){\
@@ -338,8 +339,17 @@ void Count::InitTest(double b, double l, int mode){\
     mul_mv(&dir_J2000,FrWGStoJ2000,dir_WGS84);
     // Нахождение вектора от точки съемки до КА в с.к. КА
     project_v(&dir_KA,dir_J2000,FrJ2000toKA);
+    SightingPoint(dir_KA);
+   // traj.createTrajectory(&pos,settings);
 }
 
+/*
+ * SightingPoint - функция расчета углов до точки съемки
+ * Входные переменные:
+ *      dir_KA - Вектор от точки съемки до КА в с.к. КА
+ * Выходные переменные:
+ *      pos -
+*/
 void Count::SightingPoint(vectord dir_KA){
     vectord Tel_wgs84, Tel_KA_WGS,Tel_KA, Tel_KA_J2000;
       matrixd FrWGStoJ2000;
@@ -358,4 +368,5 @@ void Count::SightingPoint(vectord dir_KA){
     project_v(&Tel_KA,Tel_KA_J2000,FrJ2000toKA);
     // Определение углов крена и тангажа для перехода к точке
     traj.directionToAngles(&pos,dir_KA,Tel_KA,1);
+   // emit send_geod_point(pos.posK,pos.posT,pos.velK);
 }

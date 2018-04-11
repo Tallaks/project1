@@ -27,6 +27,7 @@ Estar - это класс основного окна, в котором на д
 #include "GraphIK.h"
 #include "graphka.h"
 #include "graphpr.h"
+#include <QErrorMessage>
 
 class Estar : public QWidget
 {

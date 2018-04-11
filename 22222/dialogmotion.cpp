@@ -5,7 +5,6 @@ DialogMotion - это класс диалогового окна, вызывае
 */
 
 #include "dialogmotion.h"
-#include"QtHelp/QHelpContentItem"
 
 DialogMotion::DialogMotion()
 {
@@ -133,8 +132,6 @@ DialogMotion::DialogMotion()
 
     hbl->addLayout(vbl);
     hbl->addLayout(vbl1);
-
-
 }
 
 void DialogMotion::updateGeodPoint(double b, double l, double H){
