@@ -34,6 +34,9 @@ class Count : public Estar
         vectord v0_KA;
         Estar *parent1;
         quaterniond FrJ2000toKA;    // кватернион поворота от системы j2000 к с.к. КА в произвольный момент времени
+        quaterniond FrJ2000toKA_n1;
+        quaterniond FrJ2000toKA_n2;
+        quaterniond FrJ2000toKA_n3;
         quaterniond FrKAtoJ2000;
         quaterniond FrKAtoPr = {cos(to_rad(45)),0,-sin(to_rad(45)),0};
         matrixd FrJ2000toWGS;
@@ -43,18 +46,24 @@ class Count : public Estar
 
         vectord omega_Orb;
         vectord omega_KA;        // угловая скорость КА в J2000
+        vectord omega_KA_Nm1;
+        vectord omega_KA_Nm2;
         vectord omega_pr;
         vectord omega_upr;
         vectord omega_ka_nv;        // Угловая скорость от невозмущенного движения
+        vectord dir;
+        vectord kadr_WGS84;
 
         double g_lat;
         double g_lon;
+        double delta_phi;
 
         QDateTime DT;
         QDateTime tdn;
         QTime tau;
+        double time;
         int speed;
-        void SetStartParameters(double lon, double lat);
+
         /*
         SetStartParameters - это функция класса Count, задающая параметры движения КА в начальный момент времени
         Входные переменные:
@@ -67,9 +76,18 @@ class Count : public Estar
             v0_j2000    - Скорость КА в системе j2000 в начальный момент времени
         */
 
-        int MotionMode;
-        QFile file,file1;
+        void SetStartParameters(double lon, double lat);
 
+
+
+        void currentDirection(ModeDesc *data);
+
+        int MotionMode;
+        int NextMode;
+        int start;
+        int line_number;
+
+        QFile file,file1,file2;
         Settings settings;
         ModeDesc mode_desc;
         ITrajectory traj;
@@ -88,7 +106,9 @@ class Count : public Estar
         void speedup();
         void speeddown();
         void InitTest(double b, double l, int mode);
-        void SightingPoint(vectord dir_KA);
+        void KadrMotion();
+        void PloshadMotion();
+        void StereoMotion();
 
 
     signals:
@@ -102,6 +122,10 @@ class Count : public Estar
         void send_ik(double,double,double,double);
         void send_graphIK(double,double,double,double,double);
         void send_graph_PR(double,double,double,double);
+        void send_kadr_motion_status(int);
+        void send_pos(double,double);
+        void send_rotation_opengl(double,double,double,double);
+        void send_ka_pos_opengl(double,double,double);
 
 };
 

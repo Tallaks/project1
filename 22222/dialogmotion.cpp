@@ -71,19 +71,12 @@ DialogMotion::DialogMotion()
     vbl1->addLayout(hbl5);
 
     QLabel *wupr = new QLabel("Управляющее воздействие");
-    omega_UPR_x_label = new QLabel;
-    omega_UPR_y_label = new QLabel;                  // Создание полей
-    omega_UPR_z_label = new QLabel;
-    omega_UPR_x_label->setMinimumSize(100,17);
-    omega_UPR_y_label->setMinimumSize(100,17);
-    omega_UPR_z_label->setMinimumSize(100,17);       // Задание размеров полей
-    omega_UPR_x_label->setMaximumSize(100,17);
-    omega_UPR_y_label->setMaximumSize(100,17);
-    omega_UPR_z_label->setMaximumSize(100,17);
+    status = new QLabel;                  // Создание полей
+    status->setMinimumSize(100,17);       // Задание размеров полей
+    status->setMaximumSize(1000,17);
 
-    hbl1->addWidget(omega_UPR_x_label);
-    hbl1->addWidget(omega_UPR_y_label);
-    hbl1->addWidget(omega_UPR_z_label);
+
+    hbl1->addWidget(status);
 
     vbl1->addWidget(wupr);
     vbl1->addLayout(hbl1);
@@ -145,4 +138,38 @@ void DialogMotion::updateGeodPoint(double b, double l, double H){
     this->geodPointH->setText(hs);
 }
 
+void DialogMotion::updateStatus(int step){
+    QString s;
+    if(radio1->isChecked()){
+        switch(step){
+            case -1:
+                s = "Расчет траектории";
+            break;
+            case 0:
+                s = "Наведение на точку съемки";
+            break;
+            case 1:
+                s = "Съемка удалась!";
+            break;
+            case 2:
+                s = "Расчет траектории";
+            break;
+            case 3:
+                s = "Перебос в начальное положение";
+            break;
+            default:
+                s = "Ожидание";
+        }
+        this->status->setText(s);
+    }
+}
+
+void DialogMotion::updatePos(double k, double t){
+    QString ks,ts;
+    ks    = QString::number(k,'g',8);
+    ts    = QString::number(t,'g',8);
+
+    this->kren->setText(ks);
+    this->tang->setText(ts);
+}
 

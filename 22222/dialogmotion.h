@@ -31,9 +31,8 @@ public:
     QPushButton  *ChangeButton;
     QDateTimeEdit *NavedDateTime;
 
-    QLabel *omega_UPR_x_label;
-    QLabel *omega_UPR_y_label;
-    QLabel *omega_UPR_z_label;
+    QLabel *status;
+
     QLabel *geodPointB;
     QLabel *geodPointL;
     QLabel *geodPointH;
@@ -51,6 +50,8 @@ public:
 
 public slots:
     void updateGeodPoint(double b,double l,double H);
+    void updateStatus(int step);
+    void updatePos(double k,double t);
 
 };
 

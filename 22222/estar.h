@@ -27,6 +27,8 @@ Estar - это класс основного окна, в котором на д
 #include "GraphIK.h"
 #include "graphka.h"
 #include "graphpr.h"
+#include "graphicalmodel.h"
+#include "modelwindow.h"
 #include <QErrorMessage>
 
 class Estar : public QWidget
@@ -48,6 +50,8 @@ public:
     QPushButton *MotionButton;      //  Кнопка "Выбор режима съемки"
     QPushButton *SpeedUpButton;
     QPushButton *SpeedDownButton;
+    QPushButton *ModelButton;
+
     DialogMotion *DM;               //  Диалоговое окно выбора режима съемки спутника
                                     //  Параметры и свойства окна можно посмотреть в dialogmotion.h
     GraphIK *IK_Graph;
@@ -55,6 +59,9 @@ public:
     GraphPR *PR_Graph;
 
     QDateTimeEdit *dateEdit;            //  Элемент вывода даты (пока не используется)
+
+
+    modelwindow *MW;
 
 private:
 
@@ -120,9 +127,7 @@ private:
     QGroupBox *gb3;                 //  Раздел окна "Графики угловых скоростей"
     QGroupBox *gb4;                 //  Раздел окна "Угловая скорость"
 
-
     QDateTime StartDate;                //  Дата запуска        (пока не используется)
-
 
     Succes *S;
 
@@ -140,6 +145,7 @@ private slots:
     void GraphButton_clicked();     //  Слот, внутри которого описывается работа программы при нажатии кнопки "Вывод графика"
     void QuitButton_clicked();      //  Слот, внутри которого описывается работа программы при нажатии кнопки "Выход"
     void MotionButton_clicked();    //  Слот, внутри которого описывается работа программы при нажатии кнопки "Выбор режима съемки"
+    void ModelButton_clicked();
     void update(double r00, double r01, double r02, double w00,
                 double w01, double w02, QTime TIME);      // Функция, перезаписывающая значения координат КА, его угл. скорости и текущего времени в соответствующих строках основного окна
     void updategeod(double B,double L,double H);

@@ -54,18 +54,14 @@ namespace Trajectory{
         FltCoeff[0] = 0.111635212;
         FltCoeff[1] = 0.776729577;
         FTimeConstant = TACT_H*0.5*(1.0-FltCoeff[0])/FltCoeff[0];
-        // Обнуляем значение дробной части липсекунд
         set_v(&vTel,0.0,1.0,0.0);
+        // Обнуляем значение дробной части липсекунд
         leapSecFrac = 0.0;
       }
 
       void initRelocParams(Settings * par)   { relocParams = par->relocParams; }
 
-      quaterniond                      _qSm2DpnP0;             ///< Установочный кватернион ДПНП0 (СМ->ДПНП0)
-      quaterniond                      _qSm2Dpn;               ///< Установочный кватернион ДПН   (СМ->ДПН)
-      quaterniond                      _qCnt2Prf;              ///< Кватернион доворота при наблюдении за Солнцем или Луной (Телескоп->ДПН подвижная)
       vectord                          vTel;                  ///< Вектор направления оптической оси телескопа в системе координат ДПН0
-      MotionDesc                       _telPos;                ///< Углы направления оси визирования телескопа в системе координат ДПН0
       unsigned char                    solChoise;             ///< Настройка, отвечающая за выбор решения углов наведения ДПН (0-решение из "задней" полусферы, 1-решение из "передней" полусферы, 2-автоматич. выбор решения из условий ограничений")
       double                           Kren[2];
       double                           Tang[2];
@@ -187,151 +183,19 @@ namespace Trajectory{
    {
    public:
 
-      void set(double fi0= -5.0, double vc1= 180.0, double vc2= 60.0, double vc3= 4.0, double it = 60.0, double rt = 60.0, double wt = 10.0)
-            {
-                // Инициализация настроек параметров движения
-               angle0 = fi0;
-               velConst1 = (fabs(vc1) / 60.0 <= VEL_MAX && fabs(vc1) / 60.0 >= VEL_MIN) ? fabs(vc1) / 60.0 : VEL_MAX;
-               velConst2 = (fabs(vc2) / 60.0 <= VEL_MAX && fabs(vc2) / 60.0 >= VEL_MIN) ? fabs(vc2) / 60.0 : VEL_MAX;
-               velConst3 = (fabs(vc3) / 60.0 <= VEL_MAX && fabs(vc3) / 60.0 >= VEL_MIN) ? fabs(vc3) / 60.0 : VEL_MIN;
-               initTime = fabs(it);
-               relxTime = fabs(rt);
-               waitTime = fabs(wt);
-               // Обнуление текущих параметров движения
-               time = 0.0;
-               step = 0;
-               angle = 0.0;
-               velosity = 0.0;
-            }
-
-      void init(ModeDesc& data)
-             {
-                memcpy(&modeDesc, &data, sizeof(ModeDesc));
-                set(data.l, 120.0, 60.0, 1.0, 30, 60.0, 10.0);
-                initTrajectory((uint8_t) modeDesc.b);
-                deltaFi = data.h;
-             }
-
-      void initTrajectory(unsigned char mode)
-           {
-              step = -1;
-              time = 0;
-              angle = angle0;
-              switch(mode)
-                 {
-                 case 0:
-                    velosity = velConst1;
-                    deltaFi = 90;
-                    break;
-                 case 1:
-                    velosity = velConst2;
-                    deltaFi = 90;
-                    break;
-                 case 2:
-                    velosity = velConst3;
-                    deltaFi = 10;
-                    break;
-                 case 3:
-                    velosity = 0;
-                    break;
-                 default:
-                    break;
-                 }
-           }
-
       void createTrajectory(MotionDesc *pos, Settings &settings)
           {
-             double waitTime = 0;
+             angle0 = 30;
              MotionDesc frsPos;
              waitTime = 10.0;
-             double trackA, trackB, velK, velT;
-             double Altitude_km = 400;
-             double Velocity_kms = 7.707;
-             double Ground_Track_Offset_km = deltaFi;//-150;
-             double Time_Before_Nadir = -(waitTime/2.0 + settings.relocParams->relaxTime);
-             double Nadir_posK = -95.0;
              double Vel,VelN;
              double MaxAcc = 3;
              switch(step)
              {
-              /*  case -1:
-                    if(settings.relocType == 0)
-                    {
-                        pos->posK = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
-                        trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                        pos->posT = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
-                        pos->velK = 0.0;
-                        pos->velT = 0.0;
-
-                        if(time + TACT_H > initTime)
-                                     step = 1;
-                     }else{
-                        trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
-                        velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
-                        trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                        velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
-                        trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
-                        frsPos.posK = trackA;
-                        frsPos.posT = trackB;
-                        frsPos.velK = velK;
-                        frsPos.velT = velT;
-                        relocationTraj.calcSpline(settings.RelocParams->redCoeff * settings.RelocParams->maxVel, settings.RelocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
-                        memcpy(pos, &currentPosition, sizeof(MotionDesc));
-                        relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
-                        step++;
-                        }
-                  break;
-                  case 0:
-                       relocationTraj.getTrajectory(time, pos);
-                       //setCurrentPos(currentPosition);
-                       if(time + TACT_H >= relocationTraj.getRelocationTime())
-                       {
-                            if(settings.relocType>0)
-                                time-=relocationTraj.getRelocationTime();
-                            step++;
-                       }
-                            break;
-                  case 1:
-                       if(settings.relocType == 0)
-                            Time_Before_Nadir = time - initTime - (waitTime/2.0 + settings.RelocParams->relaxTime);
-                       else
-                            Time_Before_Nadir = time - (waitTime/2.0 + settings.RelocParams->relaxTime);
-                       /* Расчет траектории движения */
-                   /*    trackA = (Nadir_posK + 180/M_PI * atan(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km));
-                       velK = - 180/M_PI * Velocity_kms / (1.0 + pow(-1.0*Velocity_kms*Time_Before_Nadir/Altitude_km,2)) / Altitude_km;
-                       trackB = sqrt(pow(Altitude_km,2) + pow(Velocity_kms*Time_Before_Nadir,2));
-                       velT = -180/M_PI*Ground_Track_Offset_km*Velocity_kms*Time_Before_Nadir/(pow(trackB,3)*(1.0+pow(Ground_Track_Offset_km/trackB,2)));
-                       trackB = (Nadir_posK - 180/M_PI * atan(-1.0*Ground_Track_Offset_km/trackB));
-                       pos->posK = trackA;
-                       pos->posK = trackB;
-                       pos->velK = velK;
-                       pos->velT = velT;
-                       if(time + TACT_H >= relocationTraj.getRelocationTime() + settings.RelocParams->relaxTime + waitTime)
-                           step++;
-                  break;
-                  case 2:
-                            memcpy(pos, &currentPosition, sizeof(MotionDesc));
-                            break;
-                    }*/
                   /* Шаг 1: Переброс платформы */
                   // Ожидание начала движения либо расчет траектории переброса
                   case -1:
-                        if(settings.relocType == 0)
-                            if(time > initTime)
-                                step = 1;
-                            else
-                                Vel = 0.0;
-                        else
-                        {
-                            frsPos.posK = angle0;
-                            frsPos.posT = angle0;
-                            frsPos.velK = Vel;
-                            frsPos.velT = Vel;
-                            relocationTraj.calcSpline(settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
-                            memcpy(pos, &currentPosition, sizeof(MotionDesc));
-                            relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
-                            step++;
-                         }
+
                     break;
                     // Переброс платформы из текущего положения в необходимое для начала движения
                     case 0:
@@ -357,7 +221,7 @@ namespace Trajectory{
                                 frsPos.velK = 0.0;
                                 frsPos.velT = 0.0;
                                 angle = frsPos.posK;
-                                relocationTraj.calcSpline(settings.relocParams->redCoeff * settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                                relocationTraj.calcSpline(settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
                                 memcpy(pos, &currentPosition, sizeof(MotionDesc));
                                 relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
                             }
@@ -385,7 +249,7 @@ namespace Trajectory{
                                 frsPos.velK = -Vel;
                                 frsPos.velT = -Vel;
                                 angle = frsPos.posK;
-                                relocationTraj.calcSpline(settings.relocParams->redCoeff * settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
+                                relocationTraj.calcSpline(settings.relocParams->maxVel, settings.relocParams->maxAcc, currentPosition,  frsPos, modeDesc.angFlag);
                                 memcpy(pos, &currentPosition, sizeof(MotionDesc));
                                 relocationTraj.loPassFilter(currentPosition, &frsPos, settings.FltCoeff);
                             }
@@ -447,40 +311,17 @@ namespace Trajectory{
 
       void calculate(Settings& settings, MotionDesc *pos)
             {
-               double minKren = settings.Kren[0]+5, minTang = settings.Tang[0]+5, maxKren = settings.Kren[1]-5, maxTang = settings.Tang[1]-5;
                MotionDesc notFilteredTraj;
                if(step==-1 && settings.relocType==2)
                   memcpy(pos, &currentPosition, sizeof(MotionDesc));
 
                createTrajectory(&notFilteredTraj, settings);
-               if(!(notFilteredTraj.posK >= minKren && notFilteredTraj.posK <= maxKren))
-                  notFilteredTraj.velK = 0.0;
-               if(notFilteredTraj.posK < minKren)
-                  notFilteredTraj.posK = minKren;
-               if(notFilteredTraj.posK > maxKren)
-                  notFilteredTraj.posK = maxKren;
-
-               if(!(notFilteredTraj.posT >= minTang && notFilteredTraj.posT <= maxTang))
-                  notFilteredTraj.velT = 0.0;
-               if(notFilteredTraj.posT < minTang)
-                  notFilteredTraj.posT = minTang;
-               if(notFilteredTraj.posT > maxTang)
-                  notFilteredTraj.posT = maxTang;
-
                // Если нужно, то проводим фильтрацию созданной траектории
                if(settings.relocType==2)
                    relocationTraj.loPassFilter(notFilteredTraj, pos, settings.FltCoeff);
                else
                   memcpy(pos, &notFilteredTraj, sizeof(MotionDesc));
-
                }
-
-      void initParams() {
-         //инициализируем начальными значениями
-         _MAX_FORESEEN_TIME = MAX_FORESEEN_TIME10;
-         _dpnQuatFrsStep = DPN_Q_1ST_STEP;
-         _dpnVectFrsStep = DPN_VEC_1ST_STEP;
-      }
 
      void vectorsToAngles(vectord aAxis,
                           vectord bAxis,
@@ -539,13 +380,13 @@ namespace Trajectory{
       }
 
       void directionToAngles(MotionDesc *pos,
-                                                  vectord dir,
-                                                  vectord vTel,
-                                                  char solType)
+                             vectord dir,
+                             vectord vTel,
+                             char solType)
       {
          // 1.0 Находим линии пересечения конусов вращения по альфа и бета
-         vectord bAxis={0.0,0.0,1.0};
-         vectord aAxis{1.0,0.0,0.0};
+         vectord zAxis={0.0,0.0,1.0};
+         vectord xAxis{1.0,0.0,0.0};
          vectord trgtDir, zeroDir;
          norm_v(&trgtDir,dir);
          norm_v(&zeroDir,vTel);
@@ -591,10 +432,10 @@ namespace Trajectory{
          switch(solType)
          {
             case 0:     // Решение из "задней" полусфер
-                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir2);
+                vectorsToAngles(xAxis, zAxis, zeroDir, trgtDir, nodeDir2);
                 break;
             case 1:     // Решение из "передней" полусферы
-                vectorsToAngles(aAxis, bAxis, zeroDir, trgtDir, nodeDir1);
+                vectorsToAngles(xAxis, zAxis, zeroDir, trgtDir, nodeDir1);
                 break;
             default:
                 break;
@@ -606,7 +447,7 @@ namespace Trajectory{
             pos->posT = beta;
       }
 
-      void setCurrentPos(MotionDesc &currPos)
+      void setCurrentPos(MotionDesc currPos)
       {
         double vk = (currPos.posK - currentPosition.posK) / TACT_H;
         double vt = (currPos.posT - currentPosition.posT) / TACT_H;
@@ -620,94 +461,12 @@ namespace Trajectory{
       MotionDesc                    currentPosition;
       MotionDesc                    previousPosition;
       RelocationTraj                relocationTraj;
-      int16_t                       step;                  ///< Текущее положение на траектории
-      double                        _MAX_FORESEEN_TIME;     ///< Максммальное время прогноза вектора состояния и ориентации
+      int                           step;                  ///< Текущее положение на траектории
+     /* double                        _MAX_FORESEEN_TIME;     ///< Максммальное время прогноза вектора состояния и ориентации
       double                        _dpnQuatFrsStep;        ///< Шаг интегрирования кватерниона, с
       double                        _dpnVectFrsStep;        ///< Шаг интегрирования вектора состояния, с
-      double                        _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения
+      double                        _relocStartTime;         ///< Время начала переброса из начального положения на траектории движения*/
 
-/*
- *  currentDirection -
- *  функция класса Trajectory, выдающая значение
- *  геодезических координат точки пересечения
- *  линии визирования и поверхности земного эллипсоида
- */
-
-      void currentDirection(Settings settings, double Alpha, double Beta, ModeDesc *data, vectord r, vectord v)
-      {
-         // Присваиваем текущий вектор источника исходному вектору состояния станции в WGS84
-         vectord SrcWGS84;
-         copy_v(&SrcWGS84,r);
-
-         // Прогнозируем ориентацию станции(ДПН) в системе J2000 на текущий момент времени
-         quaterniond A0,WGS20ka0;
-
-         // Разворот относительно нулей ДПН подвижной на заданные углы
-         quaterniond FrKAtoKA0={   /*1.0,0.0,0.0,0.0*/
-          cos(M_PI/180*(180-Alpha)/2.0)*cos(M_PI/180*(180-Beta)/2.0),
-          sin(M_PI/180*(180-Alpha)/2.0)*cos(M_PI/180*(180-Beta)/2.0),
-         -sin(M_PI/180*(180-Alpha)/2.0)*sin(M_PI/180*(180-Beta)/2.0),
-          cos(M_PI/180*(180-Alpha)/2.0)*sin(M_PI/180*(180-Beta)/2.0)
-         };
-         conj_q(&FrKAtoKA0,FrKAtoKA0);
-         copy_q(&A0,FrKAtoKA0);
-
-         Povorot0(&WGS20ka0,r,v);
-         conj_q(&WGS20ka0,WGS20ka0);
-         mul_q(&A0,A0,WGS20ka0);
-
-         matrixd MKA02Wgs84;       // Матрица перехода от телескопа к WGS84
-         matrixd_q(&MKA02Wgs84,A0);
-         vectord vTel;
-         copy_v(&vTel,settings.vTel);
-         vectord vView,s;
-         mul_mv(&s,MKA02Wgs84,vTel);   // Вектор направления телескопа в WGS84
-         copy_v(&vView,s);
-
-         // Ищем точки пересечения оси визирования телескопа с поверхностью Земли на определенной высоте
-
-         double e = 1/298.257223563;
-         double polR = 6378137.0*(1-e);
-         double equR = 6378137.0;
-         double polR2 = polR * polR;
-         double equR2 = equR * equR;
-         // Вычисление коэффициентов квадратного уравнения
-         double t=0;
-         double c = (SrcWGS84[0]*SrcWGS84[0] + SrcWGS84[1]*SrcWGS84[1])/equR2 + (SrcWGS84[2]*SrcWGS84[2])/polR2 - 1.0;
-         double b = 2.0 * (SrcWGS84[0]*vView[0]/equR2 + SrcWGS84[1]*vView[1]/equR2 + SrcWGS84[2]*vView[2]/polR2);
-         double a = vView[0]*vView[0] / equR2 + vView[1]*vView[1] / equR2 + vView[2]*vView[2] / polR2;
-         double D = b*b - 4.0*a*c;
-         if(D<0.0)
-         {
-             t=0;
-         }
-         else if(D==0.0)
-         {
-            t = -b/(2.0*a);
-         }
-         else
-         {
-            double t1,t2;
-            t1 = (-b+sqrt(D))/(2.0*a);
-            t2 = (-b-sqrt(D))/(2.0*a);
-            // Среди двух решений выбираем минимальное по модулю
-            if(fabs(t1)>fabs(t2))
-                t = t2;
-            else
-                t = t1;
-         }
-
-         // Получаем координаты точки пересечения линии визирования с поверхностью эллипсоида
-         vectord pointCoord={SrcWGS84[0] + t*vView[0], SrcWGS84[1] + t*vView[1], SrcWGS84[2] + t*vView[2]};
-         // Переводим декартовы координаты в геодезические
-         vectord geodes;
-         WGS84ToGeo(&geodes,pointCoord[0],pointCoord[1],pointCoord[2]);
-
-//         data.md = dynModeEarth;
-         data->l = geodes[0];
-         data->b = geodes[1];
-         data->h = geodes[2];
-      }
 
        double      deltaFi;      ///< Угол поворота платформы при движении с постоянной скоростью
    private:
@@ -715,14 +474,14 @@ namespace Trajectory{
             double      stopTime;     ///< Время остановки платфомы / время выхода на максимальную скорость
             double      angle0;       ///< Начальный угол поворота платформы, от которого начинается отработка траектории
             double      angle;        ///< Текущий угол поворота платформы
-            double      velosity;     ///< Текущая скорость движения платформы
+       /*     double      velosity;     ///< Текущая скорость движения платформы
             double      velConst1;    ///< Постоянная скорость движения платформы в первом тесте
             double      velConst2;    ///< Постоянная скорость движения платформы во втором тесте
             double      velConst3;    ///< Постоянная скорость движения платформы в третьем тесте
-            double      initTime;     ///< Время успокоения платформы после перехода в начальную точку траектории
-            double      relxTime;     ///< Время успокоения платформы при движении с постоянной скоростью
+         */ double      initTime;     ///< Время успокоения платформы после перехода в начальную точку траектории
+            double      relaxTime;     ///< Время успокоения платформы при движении с постоянной скоростью
             double      waitTime;     ///< Задержка при измененнии знака ускорения при движении с переменной скоростью
-            uint16_t    repeatNum;    ///< Кол-во повторений тестовой траектории
+          //  uint16_t    repeatNum;    ///< Кол-во повторений тестовой траектории
             double Alpha;
             double Beta;
    };

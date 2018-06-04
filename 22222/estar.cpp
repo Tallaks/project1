@@ -30,6 +30,7 @@ Estar::Estar(QWidget *parent)
     QVBoxLayout *vbl6 = new QVBoxLayout;            //  Объединение всех элементов вывода угловой скорости
     QVBoxLayout *vbl7 = new QVBoxLayout;            //  Объединение кнопок "Старт" и "Режим Съемки"
     QVBoxLayout *vbl8 = new QVBoxLayout;            //  Объединение элементов начальной позиции КА
+    QVBoxLayout *vbl9 = new QVBoxLayout;
 
 //Области группировки элементов по горизонтали
     QHBoxLayout *hbl1  = new QHBoxLayout;            //   "Высота в км" и "720"
@@ -279,10 +280,14 @@ Estar::Estar(QWidget *parent)
    QuitButton =   new QPushButton("Выход");
    PauseButton =  new QPushButton("Пауза");
    GraphButton =  new QPushButton("Построить график");
+   ModelButton =  new QPushButton("Построить 3D модель");
 
 // Объединение кнопок "Старт" и "Режим Съемки" по вертикали
    vbl7->addWidget(StartButton);
    vbl7->addWidget(MotionButton);
+
+   vbl9->addWidget(PauseButton);
+   vbl9->addWidget(ModelButton);
 
 // Создание элемента выбора выводимого графика
    GraphList << "В системе КА" << "В приборной системе" << "Измерительные каналы";                  // Создание списка вариантов
@@ -301,7 +306,7 @@ Estar::Estar(QWidget *parent)
 
 // Объединение всех элементов, содержащих кнопки, по горизонтали
    hbl5->addLayout(vbl7);
-   hbl5->addWidget(PauseButton);
+   hbl5->addLayout(vbl9);
    hbl5->addWidget(StopButton);
    hbl5->addWidget(gb3);
    hbl5->addWidget(QuitButton);
@@ -320,9 +325,11 @@ Estar::Estar(QWidget *parent)
    QObject::connect(StopButton,&QPushButton::clicked,this,&Estar::StopButton_clicked);
    QObject::connect(GraphButton,&QPushButton::clicked,this,&Estar::GraphButton_clicked);
    QObject::connect(MotionButton,&QPushButton::clicked,this,&Estar::MotionButton_clicked);
+   QObject::connect(ModelButton,&QPushButton::clicked,this,&Estar::ModelButton_clicked);
 
 // Создание элементов для графического окна, дополнительного потока, диалогового окна и расчетного класса
    DM = new DialogMotion;
+   MW = new modelwindow;
    KA_Graph = new GraphKA;
    PR_Graph = new GraphPR;
    IK_Graph = new GraphIK;
@@ -346,22 +353,22 @@ void Estar::Succesed(){
 }
 
 void Estar::movie_started(){
-    double lat,lon;
+    double b,l;
     QErrorMessage err;
-    lat = DM->B->text().toDouble();
-    lon = DM->L->text().toDouble();
+    b = DM->B->text().toDouble();
+    l = DM->L->text().toDouble();
     QDateTime ndt = DM->NavedDateTime->dateTime();
     if(DM->radio1->isChecked()){
-        emit send_kadr_position(lat,lon,1);
+        emit send_kadr_position(b,l,1);
     }else{
         if(DM->radio2->isChecked()){
-            emit send_kadr_position(lat,lon,2);
+            emit send_kadr_position(b,l,2);
         }else{
             if(DM->radio3->isChecked()){
-                emit send_kadr_position(lat,lon,3);
+                emit send_kadr_position(b,l,3);
            }else{
                 if(DM->radio4->isChecked()){
-                    emit send_kadr_position(lat,lon,4);
+                    emit send_kadr_position(b,l,4);
                 }else{
                     emit PauseButton->clicked();
                     err.setWindowTitle("ERROR");
@@ -416,6 +423,12 @@ void Estar::MotionButton_clicked(){
     DM->show();
 
 }
+
+void Estar::ModelButton_clicked(){
+    MW->resize(400, 350);
+    MW->show();
+}
+
 // Функция смена вида основного окна при нажатии кнопок (Работает с ограничениями)
 void Estar::changeMode(Mode mode){
 

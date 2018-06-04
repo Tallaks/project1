@@ -120,8 +120,11 @@ void project_v( vectord *a , vectord b , quaterniond q );
 void project_q( quaterniond *a , quaterniond b , quaterniond q );
 void quaterniond_m( quaterniond *q , matrixd m );
 void vectord_q( vectord *v , quaterniond q);
-void intgr_q( quaterniond *q, quaterniond a, vectord v);
-void intgr_qt(quaterniond *L1, quaterniond L0, vectord w, double t);
+void intgr_qt( quaterniond *q, quaterniond a, vectord w,double t);
+void intgr_qt_Euler_1( quaterniond *L1, quaterniond L0, vectord w, double t);
+void intgr_qt_Euler_2_norm(quaterniond *L1, quaterniond L0, vectord w, double t);
+void intgr_qt_meanv3( quaterniond *L1, quaterniond L0, vectord w,vectord prevw, double t);
+void intgr_qt_stiltyes( quaterniond *LN, quaterniond LN1, quaterniond LN2, quaterniond LN3, quaterniond LN4, vectord w, double t);
 /*--------------------------------------------------------------------------*/
 /*--- Тригонометрия и прочие функции                                     ---*/
 /*--------------------------------------------------------------------------*/
@@ -145,6 +148,8 @@ void mul_rk(RungKutt *c,RungKutt a,double b);
 void DiffRungKutt(vectord *r, vectord *v, vectord R0, vectord V0, double t);
 void GeoToWGS84( vectord *a, double B, double L, double H);
 void Povorot0(quaterniond *L, vectord rj2000, vectord vj2000);
-
+double Mistake_Kinemtic_Euler_1(vectord w, double t);
+double Mistake_Kinemtic_Euler_2(vectord w, double t);
+double Mistake_Kinemtic_MeanV3(vectord w,vectord prev_w,vectord prev_prev_w,double t);
 void mul_m1v(quaterniond *IK, matrixd1 m, vectord b);
 #endif // EMATH_H

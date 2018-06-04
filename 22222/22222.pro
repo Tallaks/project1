@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT += core gui
+QT += axserver opengl
 QT += widgets
 QT += printsupport
 
@@ -22,7 +23,9 @@ SOURCES += main.cpp\
     qchartviewer.cpp \
     GraphIK.cpp \
     graphka.cpp \
-    graphpr.cpp
+    graphpr.cpp \
+    graphicalmodel.cpp \
+    modelwindow.cpp
 
 HEADERS  += estar.h \
     emath.h \
@@ -34,7 +37,9 @@ HEADERS  += estar.h \
     traj.h \
     GraphIK.h \
     graphka.h \
-    graphpr.h
+    graphpr.h \
+    graphicalmodel.h \
+    modelwindow.h
 
 RESOURCES += \
     realtimezoomscroll.qrc

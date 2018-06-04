@@ -338,15 +338,15 @@ void vectord_q( vectord *v, quaterniond q) {
 }
 /* Инегрирование кинематического уравнения */
 /* На входе : a - начальный кватернион; v - поворот */
-void intgr_q( quaterniond *q, quaterniond a, vectord v)
+void intgr_qt( quaterniond *q, quaterniond a, vectord w, double t)
 {
     quaterniond R,P;
     double SR,SP;
 
     copy_q(&R,a);
-    P[1] = v[0]*0.5;
-    P[2] = v[1]*0.5;
-    P[3] = v[2]*0.5;
+    P[1] = w[0]*t*0.5;
+    P[2] = w[1]*t*0.5;
+    P[3] = w[2]*t*0.5;
 
     SP = P[1]*P[1] + P[2]*P[2] + P[3]*P[3];
     SR = R[0]*R[0] + R[1]*R[1] + R[2]*R[2] + R[3]*R[3];
@@ -361,7 +361,7 @@ void intgr_q( quaterniond *q, quaterniond a, vectord v)
 /* На входе : a - начальный кватернион;
               w - угловая скорость
               t - время */
-void intgr_qt( quaterniond *L1, quaterniond L0, vectord w, double t)
+void intgr_qt_Euler_2_norm( quaterniond *L1, quaterniond L0, vectord w, double t)
 {
     quaterniond l0,l1,l2;
     vectord teta;
@@ -384,6 +384,102 @@ void intgr_qt( quaterniond *L1, quaterniond L0, vectord w, double t)
     (*L1)[2] = L0[2]+ l0[2] + l1[2]+ l2[2];
     (*L1)[3] = L0[3]+ l0[3] + l1[3] + l2[3];
 
+}
+
+void intgr_qt_meanv3( quaterniond *L1, quaterniond L0, vectord w,vectord prevw, double t)
+{
+    vectord theta,theta2;
+    vectord phi,delta2,dd;
+    quaterniond N;
+
+    mul_vf(&theta,w,t);
+    mul_vf(&theta2,prevw,t);
+    sub_v(&delta2,theta,theta2);
+    mul_vf(&delta2,delta2,1/t);
+    cross_v(&dd,theta,delta2);
+    mul_vf(&dd,dd,1/12.0);
+
+    add_v(&phi,theta,dd);
+    mul_vf(&phi,phi,1/2.0);
+
+    N[0] = cos(abs_v(phi));
+    N[1] = (phi[0]/abs_v(phi))*sin(abs_v(phi));
+    N[2] = (phi[1]/abs_v(phi))*sin(abs_v(phi));
+    N[3] = (phi[2]/abs_v(phi))*sin(abs_v(phi));
+
+    mul_q(L1,L0,N);
+}
+
+void intgr_qt_Euler_1( quaterniond *L1, quaterniond L0, vectord w, double t)
+{
+    quaterniond l0;
+    vectord teta;
+    mul_vf(&teta,w,0.5*t);
+
+    quaterniond_v(&l0,teta);
+    mul_q(&l0,L0,l0);
+
+    (*L1)[0] = L0[0]+ l0[0];
+    (*L1)[1] = L0[1]+ l0[1];
+    (*L1)[2] = L0[2]+ l0[2];
+    (*L1)[3] = L0[3]+ l0[3];
+
+}
+
+void intgr_qt_stiltyes( quaterniond *LN, quaterniond LN1, quaterniond LN2, quaterniond LN3, quaterniond LN4, vectord w, double t){
+    vectord theta_v;
+    quaterniond theta_q,delta_L1,delta_L2;
+    quaterniond d0,d1,d2,d3,dd1,dd2,dd;
+
+
+    mul_vf(&theta_v,w,0.5*t);
+    quaterniond_v(&theta_q,theta_v);
+
+    mul_q(&delta_L1,LN1,theta_q);
+
+    d1[0] = (LN1[0]-LN2[0])/t;
+    d1[1] = (LN1[1]-LN2[1])/t;
+    d1[2] = (LN1[2]-LN2[2])/t;
+    d1[3] = (LN1[3]-LN2[3])/t;
+
+    dd1[0] = (LN2[0]-LN3[0])/t;
+    dd1[1] = (LN2[1]-LN3[1])/t;
+    dd1[2] = (LN2[2]-LN3[2])/t;
+    dd1[3] = (LN2[3]-LN3[3])/t;
+
+    d2[0] = (d1[0]-dd1[0])/t;
+    d2[1] = (d1[1]-dd1[1])/t;
+    d2[2] = (d1[2]-dd1[2])/t;
+    d2[3] = (d1[3]-dd1[3])/t;
+
+    dd2[0] = (LN3[0]-LN4[0])/t;
+    dd2[1] = (LN3[1]-LN4[1])/t;
+    dd2[2] = (LN3[2]-LN4[2])/t;
+    dd2[3] = (LN3[3]-LN4[3])/t;
+
+    dd[0] = (dd1[0]-dd2[0])/t;
+    dd[1] = (dd1[1]-dd2[1])/t;
+    dd[2] = (dd1[2]-dd2[2])/t;
+    dd[3] = (dd1[3]-dd2[3])/t;
+
+    d3[0] = (d2[0]-dd[0])/t;
+    d3[1] = (d2[1]-dd[1])/t;
+    d3[2] = (d2[2]-dd[2])/t;
+    d3[3] = (d2[3]-dd[3])/t;
+
+    d0[0] = d1[0] + d2[0] + d3[0];
+    d0[1] = d1[1] + d2[1] + d3[1];
+    d0[2] = d1[2] + d2[2] + d3[2];
+    d0[3] = d1[3] + d2[3] + d3[3];
+
+    mul_qf(&d0,d0,0.5);
+
+    mul_q(&delta_L2,d0,theta_q);
+
+    (*LN)[0] = delta_L1[0]+delta_L2[0];
+    (*LN)[1] = delta_L1[1]+delta_L2[1];
+    (*LN)[2] = delta_L1[2]+delta_L2[2];
+    (*LN)[3] = delta_L1[3]+delta_L2[3];
 }
 /*---------------------------------------------------------------------------*/
 /*--- Тригонометрия и прочие функции                                      ---*/
@@ -440,19 +536,14 @@ void WGS84ToGeo( vectord *a, double X, double Y, double Z){
     }
     else{
         t = Z / p * (1 + e12*be / R);
-        for (int i = 1;i<=2;i++){
-            t = t*(t-ee);
-            A[0] = atan(t);
-            t = (Z + e12 * be * pow(sin(A[0]),3)) / (p - e2 * ae * pow(cos(A[0]), 3));
-        }
-        A[1] = atan2(Y,X);
-        A[0] = atan(t);
-        n = c/sqrt(1+e12*pow(cos(A[0]),2));
+        A[0] = atan2(Y,X);
+        A[1] = atan(t);
+        n = c/sqrt(1+e12*pow(cos(A[1]),2));
         if(fabs(t)<=1){
-            A[2] = p / cos(A[0]) - n;
+            A[2] = p / cos(A[1]) - n;
         }
         else{
-            A[2] = Z / sin(A[0]) - n*(1-e2);
+            A[2] = Z / sin(A[1]) - n*(1-e2);
         }
     }
     copy_v(a,A);
@@ -513,27 +604,33 @@ void DiffRungKutt(vectord *r, vectord *v, vectord R0, vectord V0,double t){
 
 void Povorot0(quaterniond *L, vectord rj2000, vectord vj2000){
     matrixd A;
-    vectord x,y,z,nr,nv;
+    vectord x,y,z,nr,nv,vnov;
     quaterniond l;
 
     norm_v(&nr,rj2000);
-    norm_v(&nv,vj2000);
 
     y[0] = -nr[0];
     y[1] = -nr[1];
     y[2] = -nr[2];
 
-    z[0] = -nv[0];
-    z[1] = -nv[1];
-    z[2] = -nv[2];
+
+    vnov[0] = -nr[0]*dot_v(y,vj2000);
+    vnov[1] = -nr[1]*dot_v(y,vj2000);
+    vnov[2] = -nr[2]*dot_v(y,vj2000);
+
+    sub_v(&vnov,vnov,vj2000);
+    norm_v(&nv,vnov);
+
+    z[0] = nv[0];
+    z[1] = nv[1];
+    z[2] = nv[2];
 
     cross_v(&x,y,z);
     norm_v(&x,x);
     A[0][0] = x[0]; A[0][1] = y[0]; A[0][2] = z[0];
     A[1][0] = x[1]; A[1][1] = y[1]; A[1][2] = z[1];
     A[2][0] = x[2]; A[2][1] = y[2]; A[2][2] = z[2];
-    transp_m(&A,A);
-   // inverse_m(&A,A);
+    inverse_m(&A,A);
     quaterniond_m(&l,A);
     copy_q(L,l);
 }
@@ -546,3 +643,34 @@ void mul_m1v(quaterniond *IK, matrixd1 m, vectord b){
         A[3]=m[3][0]*b[0]+m[3][1]*b[1]+m[3][2]*b[2];
         copy_q(IK,A);
 }
+
+double Mistake_Kinemtic_Euler_1(vectord w, double t){
+    return (abs_v(w)*t)*(abs_v(w)*t)/8;
+}
+
+double Mistake_Kinemtic_Euler_2(vectord w, double t){
+    return (abs_v(w)*t)*(abs_v(w)*t)*(abs_v(w)*t)*(abs_v(w)*t)/128;
+}
+
+double Mistake_Kinemtic_MeanV3(vectord w,vectord prev_w,vectord prev_prev_w,double t){
+    vectord delta21,delta22,delta3,delta_rez;
+    vectord theta1,theta2,theta3;
+
+    mul_vf(&theta1,w,t);
+    mul_vf(&theta2,prev_w,t);
+    mul_vf(&theta3,prev_prev_w,t);
+
+    sub_v(&delta21,theta1,theta2);
+    mul_vf(&delta21,delta21,1/t);
+
+    sub_v(&delta22,theta2,theta3);
+    mul_vf(&delta22,delta22,1/t);
+
+    sub_v(&delta3,delta21,delta22);
+    mul_vf(&delta3,delta3,1/t);
+
+    cross_v(&delta_rez,delta21,delta3);
+    mul_vf(&delta_rez,delta_rez,(-1/48.0));
+    return abs_v(delta_rez);
+}
+
